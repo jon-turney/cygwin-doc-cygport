@@ -1,0 +1,288 @@
+From 192daf76fc59ace3fef6b4bef018336825c1163b Mon Sep 17 00:00:00 2001
+From: Jon TURNEY <jon.turney@dronecode.org.uk>
+Date: Tue, 10 Mar 2015 23:35:58 +0000
+Subject: [PATCH 3/9] Add newlib2man from cygwin-doc
+
+v2:
+Use groff .so macro for a manpage which forwards to another manpage.
+
+Signed-off-by: Jon TURNEY <jon.turney@dronecode.org.uk>
+---
+ winsup/man/Makefile.in       |  23 +++++-
+ winsup/man/configure         |   5 ++
+ winsup/man/configure.ac      |   4 +
+ winsup/man/newlibinfo2man.pl | 176 +++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 204 insertions(+), 4 deletions(-)
+ create mode 100755 winsup/man/newlibinfo2man.pl
+
+diff --git a/winsup/man/Makefile.in b/winsup/man/Makefile.in
+index 44ad573..7032587 100644
+--- a/winsup/man/Makefile.in
++++ b/winsup/man/Makefile.in
+@@ -8,6 +8,7 @@
+ # details.
+ 
+ srcdir:=@srcdir@
++winsup_srcdir:=@winsup_srcdir@
+ 
+ prefix:=@prefix@
+ mandir:=@mandir@
+@@ -21,13 +22,16 @@ INSTALL:=@INSTALL@
+ INSTALL_DATA:=@INSTALL_DATA@
+ MKDIRP:=$(INSTALL) -m 755 -d
+ 
+-.PHONY: all install clean install-man install-man1 install-man3
++include $(srcdir)/../Makefile.common
+ 
+-all:
++.PHONY: all install clean install-man install-man1 install-man3 \
++	newlibinfo2man install-newlibman
+ 
+-install: install-man
++all: newlibinfo2man
+ 
+-clean:
++install: install-man install-newlibman
++
++clean: clean-newlibman
+ 
+ Makefile: $(srcdir)/Makefile.in
+ 	 /bin/sh ./config.status
+@@ -51,3 +55,14 @@ install-man1: $(MAN1S)
+ 	  echo " $(INSTALL_DATA) '$$d$$p' '$(DESTDIR)$(man1dir)/$$f'"; \
+ 	  $(INSTALL_DATA) "$$d$$p" "$(DESTDIR)$(man1dir)/$$f"; \
+ 	done
++
++# note that newlib builds *.info in srcdir
++newlibinfo2man:
++	${srcdir}/newlibinfo2man.pl ${top_srcdir}/newlib/libc/libc.info
++	${srcdir}/newlibinfo2man.pl ${top_srcdir}/newlib/libm/libm.info
++
++install-newlibman:
++	$(INSTALL_DATA) *.3 "$(DESTDIR)$(man3dir)"
++
++clean-newlibman:
++	rm *.3
+diff --git a/winsup/man/configure b/winsup/man/configure
+index ac4cae9..1c8bba0 100755
+--- a/winsup/man/configure
++++ b/winsup/man/configure
+@@ -602,6 +602,7 @@ build
+ INSTALL_DATA
+ INSTALL_SCRIPT
+ INSTALL_PROGRAM
++winsup_srcdir
+ target_alias
+ host_alias
+ build_alias
+@@ -1716,6 +1717,10 @@ ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
+ 
+ 
+ 
++. ${srcdir}/../configure.cygwin
++
++
++
+ # Find a good install program.  We prefer a C program (faster),
+ # so one script is as good as another.  But avoid the broken or
+ # incompatible versions:
+diff --git a/winsup/man/configure.ac b/winsup/man/configure.ac
+index 33e5243..f690862 100644
+--- a/winsup/man/configure.ac
++++ b/winsup/man/configure.ac
+@@ -14,6 +14,10 @@ AC_INIT([Cygwin Manpages], 0,
+ 	cygwin@cygwin.com, cygwin, https://cygwin.com)
+ AC_CONFIG_AUX_DIR(../..)
+ 
++. ${srcdir}/../configure.cygwin
++
++AC_SUBST(winsup_srcdir)
++
+ AC_PROG_INSTALL
+ AC_NO_EXECUTABLES
+ AC_CANONICAL_SYSTEM
+diff --git a/winsup/man/newlibinfo2man.pl b/winsup/man/newlibinfo2man.pl
+new file mode 100755
+index 0000000..d81c3cc
+--- /dev/null
++++ b/winsup/man/newlibinfo2man.pl
+@@ -0,0 +1,176 @@
++#!/usr/bin/perl
++
++use Time::localtime;
++sub print_footer($$$);
++
++my @month = qw'January February March April May June July August September October November December';
++my $year = localtime->year + 1900;
++my $mon = $month[localtime->mon];
++
++my $date = "$mon $year";
++
++$debug=0;
++
++# We decide whether the content of a page should go in a "summary"
++# man page or not with a flag; the first page of the info file should
++# We know which nodes are summaries from the list
++@summary_nodes = qw( Top Math version Reentrancy Index Ctype
++Stdio Strings Signals Timefns Locale Misc Syscalls Stubs
++ReentrantSyscalls Arglists Stdarg Varargs Stdlib LibraryIndex DocumentIndex );
++
++foreach (@ARGV)
++{
++  open INF, '<', $_ or die "Can't open $_!\n";
++  $first_time = 1;
++  $summary_node = 1;
++
++  # Every info file begins with a START-INFO-DIR-ENTRY of the form:
++  #'* libm::                   An ANSI-C conforming mathematical library.'
++  # which is where we'll get our TITLE, NAME, and SYNOPSIS sections
++  $_ = <INF> until (/START-INFO-DIR-ENTRY/);
++  $_ = <INF>;
++  s/^\* //;
++  s/\s\s//g;
++  chomp ();
++  my ($title, $synopsis) = split (/::/);
++  $TITLE = uc ($title);
++  $title = lc ($title); # lowercase for non-case-sensitive filesystem
++  $title =~ s/\s+/_/g;
++  open OUTSUM, '>', "$title.3";
++  print OUTSUM ".TH $TITLE 3 \"$date\" \"NEWLIB\" \"NEWLIB\"\n";
++  print OUTSUM ".SH NAME\n $title\n";
++  print OUTSUM ".SH SYNOPSIS\n $synopsis\n";
++  print OUTSUM ".SH DESCRIPTION\n";
++  $_ = <INF> until (/END-INFO-DIR-ENTRY/);
++
++  while (<INF>)
++  {
++    # octal 037 ("^_") marks node breaks in info files
++    # header lines that follow the break look like:
++    #'File: libm.info,  Node: atan,  Next: atan2,  Prev: asinh,  Up: Math'
++    # We want just the "Node: $node" part to play with
++    if (/\037/)
++    {
++      $_ = <INF>;
++      if (/Node:/)
++      {
++        @header_line = split (/,/);
++        foreach (@header_line)
++        {
++          if (/Node/)
++          {
++            if ($first_time) { $first_time = 0; }
++            else { print_footer (OUTF, $title, $node); }
++            ($junk, $node) = split (/:/);
++            $node =~ s/\W*//;
++            $node =~ s/ //;
++            if (grep /\Q$node/, @summary_nodes)
++            {
++              $summary_node = 1;
++            }
++            else
++            {
++              $summary_node = 0;
++              $node = lc($node);
++              print "working on $node of $title\n" if ($debug);
++              $node =~ s/\s+/_/g;
++              open OUTF, '>', "$node.3";
++              $NODE = uc ($node);
++              print OUTF ".TH $NODE 3 \"$date\" ";
++              print OUTF "\"NEWLIB\" \"NEWLIB\"\n";
++              print OUTF ".SH NAME\n";
++            }
++          } # End if (/Node/)
++        } # End of foreach
++      } # End if (/Node:/)
++
++      # We don't need the "Tag Table"
++      if ((/Tag Table:/) || (/^Indirect:/))
++      {
++        $_ = <INF> until (/End Tag Table/);
++        s/.*//g;
++      }
++      else
++      {
++      # Get rid of the line we already processed
++      $_ = <INF>;
++      }
++
++    } # End if (/\037/)
++
++    s/\s*\*Synopsis\*/.SH SYNOPSIS/;
++    s/\s*\*Description\*/.SH DESCRIPTION/;
++    s/\s*\*Returns\*/.SH RETURNS/;
++    s/\s*\*Portability\*/.SH PORTABILITY/;
++    #s/^[ \t]*//;
++
++    # If a line begins with an "*", we need a line break afterward
++    if (/^\*/) { $_ .= ".br\n"; }
++    if (/^===/) { $_ = ""; }
++
++    # OUTPUT
++    if ($summary_node) {
++        print OUTSUM;
++    } else {
++        print OUTF;
++    }
++
++    # Some man pages desribe more than one function like:
++    #'* acosf:                                 acos.'
++    # The Index tells us which links to make
++    if ((grep /$node/, "Index") || (grep /$node/, "LibraryIndex") || (grep /$node/, "DocumentIndex"))
++    {
++      s/.br\n//;
++      s/\(.*//;  # Remove (line 6)
++      s/\* //;   # Remove asterisks
++      s/\.$//;   # Remove trailing dot
++      s/\s*//g;  # Remove whitespace
++      s/\.$//;   # Remove more trailing dots
++      s/<(.)>/-$1/;
++      print "$_\n" if $debug;
++      ($from, $to) = split(/:/);
++      $from = lc($from);
++      $to = lc($to);
++      if ((!grep /\Q$to/i, @summary_nodes) && ($from ne $to))
++      {
++        print "linking ${to}.3 to ${from}.3\n" if ($debug);
++        open LOUT, '>', "${from}.3";
++        print LOUT ".so ${to}.3";
++        close LOUT;
++      }
++    } # End if (grep /$node/, "Index")
++  } # End while(<INF>)
++
++  close OUTF;
++  print_footer (OUTSUM, $title, $node);
++}
++exit;
++
++sub print_footer($$$)
++{
++  my $out_handle = shift;
++  my $title = shift;
++  my $node = shift;
++  print { $out_handle } ".SH \"SEE ALSO\"\n";
++  if (defined($node) && (!grep /\Q$node/, @summary_nodes) && ($node ne "Library Index"))
++  {
++    print { $out_handle } ".B $node\n";
++    print { $out_handle } "is part of the\n";
++    print { $out_handle } ".B $title\n";
++    print { $out_handle } "library.\n";
++  }
++  print { $out_handle } "The full documentation for\n";
++  print { $out_handle } ".B $title\n";
++  print { $out_handle } "is maintained as a Texinfo manual.  If \n";
++  print { $out_handle } ".B info\n";
++  print { $out_handle } "and\n";
++  print { $out_handle } ".B $title\n";
++  print { $out_handle } "are properly installed at your site, ";
++  print { $out_handle } "the command\n";
++  print { $out_handle } ".IP\n";
++  print { $out_handle } ".B info $title\n";
++  print { $out_handle } ".PP\n";
++  print { $out_handle } "will give you access to the complete manual.\n";
++  print "finished $node of $title\n" if ($debug);
++  close ($out_handle);
++}
+-- 
+2.1.4
+

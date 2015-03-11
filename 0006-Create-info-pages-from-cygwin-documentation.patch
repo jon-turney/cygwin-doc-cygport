@@ -1,0 +1,125 @@
+From 12fd17cd82e42cf2cc1d7fad9294729e30a4e7cc Mon Sep 17 00:00:00 2001
+From: Jon TURNEY <jon.turney@dronecode.org.uk>
+Date: Wed, 11 Mar 2015 13:50:51 +0000
+Subject: [PATCH 6/9] Create info pages from cygwin documentation
+
+Equivalent to cygwin2info target cygwin-doc
+
+v2:
+Updated to use docbook2x-texi not docbook2texi, since source is now docbook XML.
+Tweak DocBook XML so info directory entry has a description.
+
+Signed-off-by: Jon TURNEY <jon.turney@dronecode.org.uk>
+---
+ winsup/doc/Makefile.in       | 23 +++++++++++++++++++----
+ winsup/doc/cygwin-api.xml    |  3 +++
+ winsup/doc/cygwin-ug-net.xml |  3 +++
+ 3 files changed, 25 insertions(+), 4 deletions(-)
+
+diff --git a/winsup/doc/Makefile.in b/winsup/doc/Makefile.in
+index b7a8dbd..eed301a 100644
+--- a/winsup/doc/Makefile.in
++++ b/winsup/doc/Makefile.in
+@@ -15,6 +15,7 @@ VPATH = @srcdir@
+ datarootdir:=@datarootdir@
+ docdir = @docdir@
+ htmldir = @htmldir@
++infodir:=@infodir@
+ 
+ override INSTALL:=@INSTALL@
+ override INSTALL_DATA:=@INSTALL_DATA@
+@@ -35,7 +36,8 @@ FAQ_SOURCES:= $(wildcard $(srcdir)/faq*.xml)
+ .html.body:
+ 	$(srcdir)/bodysnatcher.pl $<
+ 
+-.PHONY: all clean install install-all install-pdf install-html tarball
++.PHONY: all clean install install-all install-pdf install-html install-info \
++	info tarball
+ 
+ all: Makefile Makefile.dep \
+ 	cygwin-ug-net/cygwin-ug-net.html \
+@@ -43,7 +45,8 @@ all: Makefile Makefile.dep \
+ 	cygwin-api/cygwin-api.html \
+ 	faq/faq.body faq/faq.html \
+ 	cygwin-ug-net/cygwin-ug-net.pdf \
+-	cygwin-api/cygwin-api.pdf
++	cygwin-api/cygwin-api.pdf \
++	info
+ 
+ Makefile: $(srcdir)/Makefile.in
+ 	/bin/sh ./config.status
+@@ -52,15 +55,16 @@ clean:
+ 	rm -f Makefile.dep
+ 	rm -f *.html *.html.gz
+ 	rm -Rf cygwin-api cygwin-ug cygwin-ug-net faq
++	rm -f *.info*
+ 
+ install: install-all
+ 
+-install-all: install-pdf install-html
++install-all: install-pdf install-html install-info
+ 
+ install-pdf: cygwin-ug-net/cygwin-ug-net.pdf cygwin-api/cygwin-api.pdf
+ 	@$(MKDIRP) $(DESTDIR)$(docdir)
+ 	$(INSTALL_DATA) $^ $(DESTDIR)$(docdir)
+-	
++
+ install-html: cygwin-ug-net/cygwin-ug-net.html cygwin-api/cygwin-api.html
+ 	@$(MKDIRP) $(DESTDIR)$(htmldir)/cygwin-ug-net
+ 	$(INSTALL_DATA) cygwin-ug-net/*.html $(DESTDIR)$(htmldir)/cygwin-ug-net
+@@ -69,6 +73,10 @@ install-html: cygwin-ug-net/cygwin-ug-net.html cygwin-api/cygwin-api.html
+ 	$(INSTALL_DATA) cygwin-api/*.html $(DESTDIR)$(htmldir)/cygwin-api
+ 	$(INSTALL_DATA) cygwin-api/cygwin-api.html $(DESTDIR)$(htmldir)/cygwin-api/index.html
+ 
++install-info:
++	$(MKDIRP) "$(DESTDIR)$(infodir)"
++	$(INSTALL_DATA) *.info* "$(DESTDIR)$(infodir)"
++
+ cygwin-ug-net/cygwin-ug-net-nochunks.html.gz : cygwin-ug-net.xml
+ 	-$(XMLTO) html-nochunks -m $(srcdir)/cygwin.xsl $<
+ 	-cp cygwin-ug-net.html cygwin-ug-net/cygwin-ug-net-nochunks.html
+@@ -91,6 +99,13 @@ faq/faq.html : $(FAQ_SOURCES)
+ 	-$(XMLTO) html -o faq -m $(srcdir)/cygwin.xsl $(srcdir)/faq.xml
+ 	-sed -i 's;<a name="id[mp][0-9]*"></a>;;g' faq/faq.html
+ 
++info:
++	# add a mapping for &reg;
++	cp /usr/share/docbook2X/charmaps/texi.charmap charmap
++	echo "ae (R)" >>charmap
++	docbook2x-texi -I --info --utf8trans-map=charmap $(srcdir)/cygwin-ug-net.xml --string-param output-file=cygwin-ug-net
++	docbook2x-texi -I --info --utf8trans-map=charmap $(srcdir)/cygwin-api.xml --string-param output-file=cygwin-api
++
+ TBFILES = cygwin-ug-net.dvi cygwin-ug-net.rtf cygwin-ug-net.ps \
+ 	  cygwin-ug-net.pdf cygwin-ug-net.xml \
+ 	  cygwin-api.dvi cygwin-api.rtf cygwin-api.ps \
+diff --git a/winsup/doc/cygwin-api.xml b/winsup/doc/cygwin-api.xml
+index ac98c00..68288d8 100644
+--- a/winsup/doc/cygwin-api.xml
++++ b/winsup/doc/cygwin-api.xml
+@@ -7,6 +7,9 @@
+   <bookinfo>
+     <date>1998-08-31</date>
+     <title>Cygwin API Reference</title>
++    <abstract role="texinfo-node">
++      <para>Cygwin API Reference</para>
++    </abstract>
+       <xi:include href="legal.xml"/>
+   </bookinfo>
+ 
+diff --git a/winsup/doc/cygwin-ug-net.xml b/winsup/doc/cygwin-ug-net.xml
+index 89526d7..6e4b811 100644
+--- a/winsup/doc/cygwin-ug-net.xml
++++ b/winsup/doc/cygwin-ug-net.xml
+@@ -6,6 +6,9 @@
+   <bookinfo>
+     <date>2009-03-18</date>
+     <title>Cygwin User's Guide</title>
++    <abstract role="texinfo-node">
++      <para>Cygwin User's Guide</para>
++    </abstract>
+ 		<xi:include href="legal.xml"/>
+   </bookinfo>
+ 
+-- 
+2.1.4
+

@@ -1,0 +1,58 @@
+From 938e1dbe8852c487bbad85ecd3438985058c98c0 Mon Sep 17 00:00:00 2001
+From: Jon TURNEY <jon.turney@dronecode.org.uk>
+Date: Thu, 12 Mar 2015 17:22:23 +0000
+Subject: [PATCH 9/9] Fix newlib info so 'info libc' and 'info libm' work
+
+'info libc' and 'info libm' don't work for installed newlib info.
+
+This seems to be due to the formatting of the @direntry line not being
+quite right, so fix that.
+
+Also use @dircategory texinfo command to place into 'Newlib' category, rather
+than ending up in 'Miscellaneous'
+
+Signed-off-by: Jon TURNEY <jon.turney@dronecode.org.uk>
+---
+ newlib/libc/libc.texinfo | 7 ++++---
+ newlib/libm/libm.texinfo | 7 ++++---
+ 2 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/newlib/libc/libc.texinfo b/newlib/libc/libc.texinfo
+index 82f283c..6216c99 100644
+--- a/newlib/libc/libc.texinfo
++++ b/newlib/libc/libc.texinfo
+@@ -4,9 +4,10 @@
+ 
+ @ifinfo
+ @format
+-START-INFO-DIR-ENTRY
+-* libc::                        The ANSI C library.
+-END-INFO-DIR-ENTRY
++@dircategory Newlib
++@direntry
++* libc: (libc).                 The ANSI C library.
++@end direntry
+ @end format
+ @end ifinfo
+ 
+diff --git a/newlib/libm/libm.texinfo b/newlib/libm/libm.texinfo
+index f259848..5c28975 100644
+--- a/newlib/libm/libm.texinfo
++++ b/newlib/libm/libm.texinfo
+@@ -4,9 +4,10 @@
+ 
+ @ifinfo
+ @format
+-START-INFO-DIR-ENTRY
+-* libm::                        An ANSI-C conforming mathematical library.
+-END-INFO-DIR-ENTRY
++@dircategory Newlib
++@direntry
++* libm: (libm).                 An ANSI-C conforming mathematical library.
++@end direntry
+ @end format
+ @end ifinfo
+ 
+-- 
+2.1.4
+

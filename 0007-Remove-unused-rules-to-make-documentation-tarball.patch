@@ -1,0 +1,35 @@
+From d3b286f985000e787ef754b036bb4b20194b3f4e Mon Sep 17 00:00:00 2001
+From: Jon TURNEY <jon.turney@dronecode.org.uk>
+Date: Wed, 11 Mar 2015 13:52:01 +0000
+Subject: [PATCH 7/9] Remove unused rules to make documentation tarball
+
+Signed-off-by: Jon TURNEY <jon.turney@dronecode.org.uk>
+---
+ winsup/doc/Makefile.in | 11 -----------
+ 1 file changed, 11 deletions(-)
+
+diff --git a/winsup/doc/Makefile.in b/winsup/doc/Makefile.in
+index eed301a..55fd850 100644
+--- a/winsup/doc/Makefile.in
++++ b/winsup/doc/Makefile.in
+@@ -106,17 +106,6 @@ info:
+ 	docbook2x-texi -I --info --utf8trans-map=charmap $(srcdir)/cygwin-ug-net.xml --string-param output-file=cygwin-ug-net
+ 	docbook2x-texi -I --info --utf8trans-map=charmap $(srcdir)/cygwin-api.xml --string-param output-file=cygwin-api
+ 
+-TBFILES = cygwin-ug-net.dvi cygwin-ug-net.rtf cygwin-ug-net.ps \
+-	  cygwin-ug-net.pdf cygwin-ug-net.xml \
+-	  cygwin-api.dvi cygwin-api.rtf cygwin-api.ps \
+-	  cygwin-api.pdf cygwin-api.xml
+-TBDIRS = cygwin-ug-net cygwin-api
+-TBDEPS = cygwin-ug-net/cygwin-ug-net.html cygwin-api/cygwin-api.html
+-
+-tarball : cygwin-docs.tar.bz2
+-cygwin-docs.tar.bz2 : $(TBFILES) $(TBDEPS)
+-	find $(TBFILES) $(TBDIRS) \! -type d | sort | tar -T - -cf -  | bzip2 > cygwin-docs.tar.bz2
+-
+ Makefile.dep: cygwin-ug-net.xml cygwin-api.xml
+ 	cd $(srcdir) && ./xidepend $^ > "${CURDIR}/$@"
+ 
+-- 
+2.1.4
+

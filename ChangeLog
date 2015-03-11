@@ -1,0 +1,16 @@
+2015-03-11  Jon TURNEY  <jon.turney@dronecode.org.uk>
+
+	Convert to patches applied to cygwin.
+	Convert to building using cygport.
+
+2010-04-13  Christopher Faylor  <me+cygwin@cgf.cx>
+
+	* .mknetrelrc: New file.
+	* configure: Robustify.  Add ability to use packaged src directory.
+	Use cygwin.dsl from src directory.
+	* update-src-files.sh: Don't be verbose when copying.
+
+2010-04-11  Christopher Faylor  <me+cygwin@cgf.cx>
+
+	Import initial version of cygwin-doc tools based on Joshua Franklin's
+	old tools.

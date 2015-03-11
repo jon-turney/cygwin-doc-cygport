@@ -1,0 +1,72 @@
+NAME="cygwin-doc"
+VERSION="1.7.35"
+RELEASE="1"
+HOMEPAGE="https://cygwin.com/"
+
+CVS_URI=":pserver:anoncvs@sourceware.org:/cvs/src"
+CVS_MODULE="winsup"
+CVS_BRANCH="cygwin-${PV//\./_}-release"
+#CVS_BRANCH="HEAD"
+SRC_DIR="src"
+inherit cvs
+
+TOOLCHAIN_TARGET="native"
+inherit toolchain
+
+PKG_NAMES="cygwin-doc"
+
+# cygwin doc package
+cygwin_doc_CATEGORY="Doc"
+cygwin_doc_SUMMARY="Cygwin-specific documentation, including man pages"
+cygwin_doc_DESCRIPTION="Documentation for Cygwin and newlib, including man
+pages and texinfo files."
+cygwin_doc_CONTENTS="usr/share/man/ usr/share/info
+ --exclude=usr/share/info/standards.info.gz  --exclude=usr/share/info/configure.info.gz
+ --exclude=usr/share/man/man3/regex.3.gz --exclude=usr/share/man/man7/regex.7.gz"
+
+PKG_IGNORE="etc/ usr/bin usr/include usr/lib usr/sbin usr/share/cygwin
+usr/share/doc usr/share/info/standards.info.gz usr/share/info/configure.info.gz
+usr/share/man/man3/regex.3.gz usr/share/man/man7/regex.7.gz usr/x86_64-pc-cygwin"
+DIFF_EXCLUDES="libc.info libm.info"
+RESTRICT="debuginfo"
+
+PATCH_URI="
+0001-Add-man-subdirectory.patch
+0002-Merge-in-static-man-pages-from-cygwin-doc.patch
+0003-Add-newlib2man-from-cygwin-doc.patch
+0004-Add-utils2man-for-cygwin-doc.patch
+0005-Add-api2man-from-cygwin-doc.patch
+0006-Create-info-pages-from-cygwin-documentation.patch
+0007-Remove-unused-rules-to-make-documentation-tarball.patch
+0008-Fix-winsup-doc-to-install-into-prefix.patch
+0009-Fix-newlib-info-so-info-libc-and-info-libm-work.patch
+"
+
+src_compile() {
+  # make sure scripts added by patches are executablea
+  cd ${S}
+  chmod +x winsup/man/api2man.pl
+  chmod +x winsup/man/newlibinfo2man.pl
+  chmod +x winsup/man/utils2man.pl
+
+  cd ${B}
+  cygconf
+  # newlib only makes lib[cm].info on make info?
+  cygmake info
+  # XXX: need to plumb in patches to make info, make man, etc.
+  cygmake
+}
+
+src_install() {
+  cd ${B}
+  cyginstall -j1 install-info
+
+  # tooldir and gcc_tooldir must be set to install correctly even when
+  # building on a non-Cygwin build machine.
+  cyginstall -j1 tooldir=/usr gcc_tooldir=/usr
+
+  # XXX: need to plumb in patches to make install-info, etc.
+
+  # avoid using wrong cygwin1.dll during packaging steps
+  rm ${D}/usr/bin/cygwin1.dll
+}

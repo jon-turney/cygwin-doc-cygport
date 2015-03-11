@@ -1,0 +1,27 @@
+From cfc7640a58d17e2b3465442fdededaf5f987755e Mon Sep 17 00:00:00 2001
+From: Jon TURNEY <jon.turney@dronecode.org.uk>
+Date: Wed, 11 Mar 2015 14:06:03 +0000
+Subject: [PATCH 8/9] Fix winsup/doc to install into prefix
+
+docdir and htmldir are defined in terms of prefix, so define it.
+
+Signed-off-by: Jon TURNEY <jon.turney@dronecode.org.uk>
+---
+ winsup/doc/Makefile.in | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/winsup/doc/Makefile.in b/winsup/doc/Makefile.in
+index 55fd850..5b2f0ed 100644
+--- a/winsup/doc/Makefile.in
++++ b/winsup/doc/Makefile.in
+@@ -12,6 +12,7 @@ SHELL = @SHELL@
+ srcdir = @srcdir@
+ VPATH = @srcdir@
+ 
++prefix:=@prefix@
+ datarootdir:=@datarootdir@
+ docdir = @docdir@
+ htmldir = @htmldir@
+-- 
+2.1.4
+
