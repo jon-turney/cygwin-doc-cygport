@@ -1,14 +1,11 @@
 NAME="cygwin-doc"
-VERSION="1.7.35"
+VERSION="2.0.3"
 RELEASE="1"
 HOMEPAGE="https://cygwin.com/"
 
-CVS_URI=":pserver:anoncvs@sourceware.org:/cvs/src"
-CVS_MODULE="winsup"
-CVS_BRANCH="cygwin-${PV//\./_}-release"
-#CVS_BRANCH="HEAD"
-SRC_DIR="src"
-inherit cvs
+GIT_URI="git://cygwin.com/git/newlib-cygwin.git"
+GIT_TAG="cygwin-${PV//\./_}-release"
+inherit git
 
 TOOLCHAIN_TARGET="native"
 inherit toolchain
@@ -32,14 +29,12 @@ RESTRICT="debuginfo"
 
 PATCH_URI="
 0001-Add-man-subdirectory.patch
-0002-Merge-in-static-man-pages-from-cygwin-doc.patch
+0002-Add-static-man-pages-from-cygwin-doc.patch
 0003-Add-newlib2man-from-cygwin-doc.patch
 0004-Add-utils2man-for-cygwin-doc.patch
 0005-Add-api2man-from-cygwin-doc.patch
 0006-Create-info-pages-from-cygwin-documentation.patch
 0007-Remove-unused-rules-to-make-documentation-tarball.patch
-0008-Fix-winsup-doc-to-install-into-prefix.patch
-0009-Fix-newlib-info-so-info-libc-and-info-libm-work.patch
 "
 
 src_compile() {

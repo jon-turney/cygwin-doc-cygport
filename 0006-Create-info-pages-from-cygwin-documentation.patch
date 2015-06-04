@@ -1,13 +1,16 @@
-From 12fd17cd82e42cf2cc1d7fad9294729e30a4e7cc Mon Sep 17 00:00:00 2001
+From cdd2bd3ccd0ab84032f00b0696bacc695ae358ed Mon Sep 17 00:00:00 2001
 From: Jon TURNEY <jon.turney@dronecode.org.uk>
 Date: Wed, 11 Mar 2015 13:50:51 +0000
-Subject: [PATCH 6/9] Create info pages from cygwin documentation
+Subject: [PATCH 6/7] Create info pages from cygwin documentation
 
-Equivalent to cygwin2info target cygwin-doc
+Equivalent to the cygwin2info target in cygwin-doc
 
 v2:
 Updated to use docbook2x-texi not docbook2texi, since source is now docbook XML.
 Tweak DocBook XML so info directory entry has a description.
+
+v3:
+Use a custom charmap to handle &reg;
 
 Signed-off-by: Jon TURNEY <jon.turney@dronecode.org.uk>
 ---
@@ -17,10 +20,10 @@ Signed-off-by: Jon TURNEY <jon.turney@dronecode.org.uk>
  3 files changed, 25 insertions(+), 4 deletions(-)
 
 diff --git a/winsup/doc/Makefile.in b/winsup/doc/Makefile.in
-index b7a8dbd..eed301a 100644
+index 8bf86f7..406ee5b 100644
 --- a/winsup/doc/Makefile.in
 +++ b/winsup/doc/Makefile.in
-@@ -15,6 +15,7 @@ VPATH = @srcdir@
+@@ -16,6 +16,7 @@ prefix:=@prefix@
  datarootdir:=@datarootdir@
  docdir = @docdir@
  htmldir = @htmldir@
@@ -28,7 +31,7 @@ index b7a8dbd..eed301a 100644
  
  override INSTALL:=@INSTALL@
  override INSTALL_DATA:=@INSTALL_DATA@
-@@ -35,7 +36,8 @@ FAQ_SOURCES:= $(wildcard $(srcdir)/faq*.xml)
+@@ -36,7 +37,8 @@ FAQ_SOURCES:= $(wildcard $(srcdir)/faq*.xml)
  .html.body:
  	$(srcdir)/bodysnatcher.pl $<
  
@@ -38,7 +41,7 @@ index b7a8dbd..eed301a 100644
  
  all: Makefile Makefile.dep \
  	cygwin-ug-net/cygwin-ug-net.html \
-@@ -43,7 +45,8 @@ all: Makefile Makefile.dep \
+@@ -44,7 +46,8 @@ all: Makefile Makefile.dep \
  	cygwin-api/cygwin-api.html \
  	faq/faq.body faq/faq.html \
  	cygwin-ug-net/cygwin-ug-net.pdf \
@@ -48,7 +51,7 @@ index b7a8dbd..eed301a 100644
  
  Makefile: $(srcdir)/Makefile.in
  	/bin/sh ./config.status
-@@ -52,15 +55,16 @@ clean:
+@@ -53,15 +56,16 @@ clean:
  	rm -f Makefile.dep
  	rm -f *.html *.html.gz
  	rm -Rf cygwin-api cygwin-ug cygwin-ug-net faq
@@ -67,7 +70,7 @@ index b7a8dbd..eed301a 100644
  install-html: cygwin-ug-net/cygwin-ug-net.html cygwin-api/cygwin-api.html
  	@$(MKDIRP) $(DESTDIR)$(htmldir)/cygwin-ug-net
  	$(INSTALL_DATA) cygwin-ug-net/*.html $(DESTDIR)$(htmldir)/cygwin-ug-net
-@@ -69,6 +73,10 @@ install-html: cygwin-ug-net/cygwin-ug-net.html cygwin-api/cygwin-api.html
+@@ -70,6 +74,10 @@ install-html: cygwin-ug-net/cygwin-ug-net.html cygwin-api/cygwin-api.html
  	$(INSTALL_DATA) cygwin-api/*.html $(DESTDIR)$(htmldir)/cygwin-api
  	$(INSTALL_DATA) cygwin-api/cygwin-api.html $(DESTDIR)$(htmldir)/cygwin-api/index.html
  
@@ -78,12 +81,12 @@ index b7a8dbd..eed301a 100644
  cygwin-ug-net/cygwin-ug-net-nochunks.html.gz : cygwin-ug-net.xml
  	-$(XMLTO) html-nochunks -m $(srcdir)/cygwin.xsl $<
  	-cp cygwin-ug-net.html cygwin-ug-net/cygwin-ug-net-nochunks.html
-@@ -91,6 +99,13 @@ faq/faq.html : $(FAQ_SOURCES)
+@@ -92,6 +100,13 @@ faq/faq.html : $(FAQ_SOURCES)
  	-$(XMLTO) html -o faq -m $(srcdir)/cygwin.xsl $(srcdir)/faq.xml
  	-sed -i 's;<a name="id[mp][0-9]*"></a>;;g' faq/faq.html
  
 +info:
-+	# add a mapping for &reg;
++# add a mapping for &reg;
 +	cp /usr/share/docbook2X/charmaps/texi.charmap charmap
 +	echo "ae (R)" >>charmap
 +	docbook2x-texi -I --info --utf8trans-map=charmap $(srcdir)/cygwin-ug-net.xml --string-param output-file=cygwin-ug-net

@@ -1,7 +1,7 @@
-From fa3d79994958fe640496966db8f975738071d850 Mon Sep 17 00:00:00 2001
+From 3dc9ecbf51a77c84789fab42c15fe49f2263a81e Mon Sep 17 00:00:00 2001
 From: Jon TURNEY <jon.turney@dronecode.org.uk>
 Date: Tue, 10 Mar 2015 18:20:09 +0000
-Subject: [PATCH 5/9] Add api2man from cygwin-doc
+Subject: [PATCH 5/7] Add api2man from cygwin-doc
 
 Signed-off-by: Jon TURNEY <jon.turney@dronecode.org.uk>
 ---

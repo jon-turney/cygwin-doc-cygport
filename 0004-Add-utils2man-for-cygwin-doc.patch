@@ -1,7 +1,7 @@
-From 146481e76b06ce7ed41931fc1afc3ba2720ac129 Mon Sep 17 00:00:00 2001
+From 34d3a9d901587b050601056a20ee42722dd8ee36 Mon Sep 17 00:00:00 2001
 From: Jon TURNEY <jon.turney@dronecode.org.uk>
 Date: Tue, 10 Mar 2015 15:25:32 +0000
-Subject: [PATCH 4/9] Add utils2man for cygwin-doc
+Subject: [PATCH 4/7] Add utils2man for cygwin-doc
 
 v2:
 Fix up parsing of section2 titles for current utils.xml

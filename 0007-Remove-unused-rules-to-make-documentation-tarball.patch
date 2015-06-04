@@ -1,7 +1,7 @@
-From d3b286f985000e787ef754b036bb4b20194b3f4e Mon Sep 17 00:00:00 2001
+From b94e152d873a87c87b91a4b2b0bf20d85c258650 Mon Sep 17 00:00:00 2001
 From: Jon TURNEY <jon.turney@dronecode.org.uk>
 Date: Wed, 11 Mar 2015 13:52:01 +0000
-Subject: [PATCH 7/9] Remove unused rules to make documentation tarball
+Subject: [PATCH 7/7] Remove unused rules to make documentation tarball
 
 Signed-off-by: Jon TURNEY <jon.turney@dronecode.org.uk>
 ---
@@ -9,10 +9,10 @@ Signed-off-by: Jon TURNEY <jon.turney@dronecode.org.uk>
  1 file changed, 11 deletions(-)
 
 diff --git a/winsup/doc/Makefile.in b/winsup/doc/Makefile.in
-index eed301a..55fd850 100644
+index 406ee5b..eb7abfd 100644
 --- a/winsup/doc/Makefile.in
 +++ b/winsup/doc/Makefile.in
-@@ -106,17 +106,6 @@ info:
+@@ -107,17 +107,6 @@ info:
  	docbook2x-texi -I --info --utf8trans-map=charmap $(srcdir)/cygwin-ug-net.xml --string-param output-file=cygwin-ug-net
  	docbook2x-texi -I --info --utf8trans-map=charmap $(srcdir)/cygwin-api.xml --string-param output-file=cygwin-api
  

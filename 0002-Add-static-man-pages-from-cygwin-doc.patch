@@ -1,7 +1,7 @@
-From 8a5c2c2bc5e5d76c0e04b21b7dd8ad44d72ab359 Mon Sep 17 00:00:00 2001
+From bcecb9d04f7b8be5beb581de81682f1ce110661b Mon Sep 17 00:00:00 2001
 From: Jon TURNEY <jon.turney@dronecode.org.uk>
 Date: Tue, 10 Mar 2015 22:59:49 +0000
-Subject: [PATCH 2/9] Merge in static man pages from cygwin-doc
+Subject: [PATCH 2/7] Add static man pages from cygwin-doc
 
 v2:
 intro.1 and cygwin.1 are identical. Make cygwin.1 a link to intro.1

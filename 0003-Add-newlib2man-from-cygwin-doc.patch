@@ -1,18 +1,23 @@
-From 192daf76fc59ace3fef6b4bef018336825c1163b Mon Sep 17 00:00:00 2001
+From ca393722cea838a0debb0e5d6960e00cf7d03a23 Mon Sep 17 00:00:00 2001
 From: Jon TURNEY <jon.turney@dronecode.org.uk>
 Date: Tue, 10 Mar 2015 23:35:58 +0000
-Subject: [PATCH 3/9] Add newlib2man from cygwin-doc
+Subject: [PATCH 3/7] Add newlib2man from cygwin-doc
 
 v2:
 Use groff .so macro for a manpage which forwards to another manpage.
+
+v3:
+Fix for current START-INFO-DIR-ENTRY format
+Prevent lines beginning with . or '
+'BUGS' is also a section header
 
 Signed-off-by: Jon TURNEY <jon.turney@dronecode.org.uk>
 ---
  winsup/man/Makefile.in       |  23 +++++-
  winsup/man/configure         |   5 ++
  winsup/man/configure.ac      |   4 +
- winsup/man/newlibinfo2man.pl | 176 +++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 204 insertions(+), 4 deletions(-)
+ winsup/man/newlibinfo2man.pl | 182 +++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 210 insertions(+), 4 deletions(-)
  create mode 100755 winsup/man/newlibinfo2man.pl
 
 diff --git a/winsup/man/Makefile.in b/winsup/man/Makefile.in
@@ -64,7 +69,7 @@ index 44ad573..7032587 100644
 +clean-newlibman:
 +	rm *.3
 diff --git a/winsup/man/configure b/winsup/man/configure
-index ac4cae9..1c8bba0 100755
+index 02a8eee..0844d47 100755
 --- a/winsup/man/configure
 +++ b/winsup/man/configure
 @@ -602,6 +602,7 @@ build
@@ -103,10 +108,10 @@ index 33e5243..f690862 100644
  AC_CANONICAL_SYSTEM
 diff --git a/winsup/man/newlibinfo2man.pl b/winsup/man/newlibinfo2man.pl
 new file mode 100755
-index 0000000..d81c3cc
+index 0000000..d54775c
 --- /dev/null
 +++ b/winsup/man/newlibinfo2man.pl
-@@ -0,0 +1,176 @@
+@@ -0,0 +1,182 @@
 +#!/usr/bin/perl
 +
 +use Time::localtime;
@@ -134,14 +139,14 @@ index 0000000..d81c3cc
 +  $summary_node = 1;
 +
 +  # Every info file begins with a START-INFO-DIR-ENTRY of the form:
-+  #'* libm::                   An ANSI-C conforming mathematical library.'
++  #* libm: (libm).                 An ANSI-C conforming mathematical library.
 +  # which is where we'll get our TITLE, NAME, and SYNOPSIS sections
 +  $_ = <INF> until (/START-INFO-DIR-ENTRY/);
 +  $_ = <INF>;
 +  s/^\* //;
 +  s/\s\s//g;
 +  chomp ();
-+  my ($title, $synopsis) = split (/::/);
++  my ($title, $synopsis) = split (/:.*\)./);
 +  $TITLE = uc ($title);
 +  $title = lc ($title); # lowercase for non-case-sensitive filesystem
 +  $title =~ s/\s+/_/g;
@@ -163,41 +168,41 @@ index 0000000..d81c3cc
 +      $_ = <INF>;
 +      if (/Node:/)
 +      {
-+        @header_line = split (/,/);
-+        foreach (@header_line)
-+        {
-+          if (/Node/)
-+          {
-+            if ($first_time) { $first_time = 0; }
-+            else { print_footer (OUTF, $title, $node); }
-+            ($junk, $node) = split (/:/);
-+            $node =~ s/\W*//;
-+            $node =~ s/ //;
-+            if (grep /\Q$node/, @summary_nodes)
-+            {
-+              $summary_node = 1;
-+            }
-+            else
-+            {
-+              $summary_node = 0;
-+              $node = lc($node);
-+              print "working on $node of $title\n" if ($debug);
-+              $node =~ s/\s+/_/g;
-+              open OUTF, '>', "$node.3";
-+              $NODE = uc ($node);
-+              print OUTF ".TH $NODE 3 \"$date\" ";
-+              print OUTF "\"NEWLIB\" \"NEWLIB\"\n";
-+              print OUTF ".SH NAME\n";
-+            }
-+          } # End if (/Node/)
-+        } # End of foreach
++	@header_line = split (/,/);
++	foreach (@header_line)
++	{
++	  if (/Node/)
++	  {
++	    if ($first_time) { $first_time = 0; }
++	    else { print_footer (OUTF, $title, $node); }
++	    ($junk, $node) = split (/:/);
++	    $node =~ s/\W*//;
++	    $node =~ s/ //;
++	    if (grep /\Q$node/, @summary_nodes)
++	    {
++	      $summary_node = 1;
++	    }
++	    else
++	    {
++	      $summary_node = 0;
++	      $node = lc($node);
++	      print "working on $node of $title\n" if ($debug);
++	      $node =~ s/\s+/_/g;
++	      open OUTF, '>', "$node.3";
++	      $NODE = uc ($node);
++	      print OUTF ".TH $NODE 3 \"$date\" ";
++	      print OUTF "\"NEWLIB\" \"NEWLIB\"\n";
++	      print OUTF ".SH NAME\n";
++	    }
++	  } # End if (/Node/)
++	} # End of foreach
 +      } # End if (/Node:/)
 +
 +      # We don't need the "Tag Table"
 +      if ((/Tag Table:/) || (/^Indirect:/))
 +      {
-+        $_ = <INF> until (/End Tag Table/);
-+        s/.*//g;
++	$_ = <INF> until (/End Tag Table/);
++	s/.*//g;
 +      }
 +      else
 +      {
@@ -207,10 +212,16 @@ index 0000000..d81c3cc
 +
 +    } # End if (/\037/)
 +
++    # If a line begins with a full-stop or apostrophe, this will be interpreted
++    # as beginning a troff request, so place a zero-width character before it,
++    # to prevent that.
++    if (/^[.']/) { $_ = '\&' . $_; }
++
 +    s/\s*\*Synopsis\*/.SH SYNOPSIS/;
 +    s/\s*\*Description\*/.SH DESCRIPTION/;
 +    s/\s*\*Returns\*/.SH RETURNS/;
 +    s/\s*\*Portability\*/.SH PORTABILITY/;
++    s/\s*\*Bugs\*/.SH BUGS/;
 +    #s/^[ \t]*//;
 +
 +    # If a line begins with an "*", we need a line break afterward
@@ -219,12 +230,12 @@ index 0000000..d81c3cc
 +
 +    # OUTPUT
 +    if ($summary_node) {
-+        print OUTSUM;
++	print OUTSUM;
 +    } else {
-+        print OUTF;
++	print OUTF;
 +    }
 +
-+    # Some man pages desribe more than one function like:
++    # Some man pages describe more than one function like:
 +    #'* acosf:                                 acos.'
 +    # The Index tells us which links to make
 +    if ((grep /$node/, "Index") || (grep /$node/, "LibraryIndex") || (grep /$node/, "DocumentIndex"))
@@ -242,10 +253,10 @@ index 0000000..d81c3cc
 +      $to = lc($to);
 +      if ((!grep /\Q$to/i, @summary_nodes) && ($from ne $to))
 +      {
-+        print "linking ${to}.3 to ${from}.3\n" if ($debug);
-+        open LOUT, '>', "${from}.3";
-+        print LOUT ".so ${to}.3";
-+        close LOUT;
++	print "linking ${to}.3 to ${from}.3\n" if ($debug);
++	open LOUT, '>', "${from}.3";
++	print LOUT ".so ${to}.3";
++	close LOUT;
 +      }
 +    } # End if (grep /$node/, "Index")
 +  } # End while(<INF>)
