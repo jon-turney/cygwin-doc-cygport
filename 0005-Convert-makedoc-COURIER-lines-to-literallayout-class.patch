@@ -1,0 +1,28 @@
+From acec066b543becc3a9617412a625ce3d7d1438a4 Mon Sep 17 00:00:00 2001
+From: Jon TURNEY <jon.turney@dronecode.org.uk>
+Date: Thu, 9 Jul 2015 12:27:42 +0100
+Subject: [PATCH 5/6] Convert makedoc COURIER lines to <literallayout
+ class="monospace"> not <code>
+
+It's used for preformatted content over multiple lines, so must be shown
+verbatim.
+---
+ newlib/doc/makedocbook.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/newlib/doc/makedocbook.py b/newlib/doc/makedocbook.py
+index 6dd4657..2a0274a 100755
+--- a/newlib/doc/makedocbook.py
++++ b/newlib/doc/makedocbook.py
+@@ -646,7 +646,7 @@ def p_maybe_blankline(p):
+ 
+ def p_courierblock(p):
+     '''courierblock : courier'''
+-    p[0] = '<code>' + p[1] + '</code>'
++    p[0] = '<literallayout class="monospaced">' + p[1] + '</literallayout>'
+     parser_verbose(p)
+ 
+ def p_courier(p):
+-- 
+2.4.5
+

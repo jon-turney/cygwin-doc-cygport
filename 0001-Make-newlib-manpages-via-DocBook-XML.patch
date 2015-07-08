@@ -1,0 +1,1816 @@
+From 82a02e878ce9c394e096836187300143fcf5b0aa Mon Sep 17 00:00:00 2001
+From: Jon TURNEY <jon.turney@dronecode.org.uk>
+Date: Tue, 23 Jun 2015 13:37:09 +0100
+Subject: [PATCH 1/6] Make newlib manpages via DocBook XML
+
+Add makedocbook, a tool to process makedoc markup and output DocBook XML
+refentries.
+
+Add chapter-texi2docbook, to help automatically convert chapter .texi files to
+DocBook XML. (This does more work than is strictly necessary: For generating man
+pages all we care about is the content of the refentries, so all we need to
+convert are @include of the makedoc generated .def files to xi:include
+makedocbook generated .xml.  Fully converting the documentation would also need
+to convert the handwritten contents of lib[cm].texinfo, where only a skeleton
+lib[cm].xml is currently used.)
+
+All the source files which are processed with makedoc, process with makedocbook
+as well
+
+Generate and install man pages and HTML (The HTML is just for ease of reviewing
+all manpages)
+
+Signed-off-by: Jon TURNEY <jon.turney@dronecode.org.uk>
+---
+ newlib/doc/.gitignore              |   3 +
+ newlib/doc/chapter-texi2docbook.py | 137 +++++++
+ newlib/doc/makedocbook.py          | 783 +++++++++++++++++++++++++++++++++++++
+ newlib/libc/Makefile.am            |  16 +-
+ newlib/libc/ctype/Makefile.am      |  24 +-
+ newlib/libc/libc.in.xml            |  25 ++
+ newlib/libc/locale/Makefile.am     |  21 +-
+ newlib/libc/misc/Makefile.am       |  22 +-
+ newlib/libc/posix/Makefile.am      |  22 +-
+ newlib/libc/reent/reent.tex        |   4 +-
+ newlib/libc/search/Makefile.am     |  19 +-
+ newlib/libc/signal/Makefile.am     |  24 +-
+ newlib/libc/stdio/Makefile.am      |  24 +-
+ newlib/libc/stdio64/Makefile.am    |  23 +-
+ newlib/libc/stdlib/Makefile.am     |  24 +-
+ newlib/libc/string/Makefile.am     |  21 +-
+ newlib/libc/time/Makefile.am       |  24 +-
+ newlib/libm/Makefile.am            |  16 +-
+ newlib/libm/common/Makefile.am     |  17 +-
+ newlib/libm/complex/Makefile.am    |  24 +-
+ newlib/libm/libm.in.xml            |  11 +
+ newlib/libm/math/Makefile.am       |  22 +-
+ newlib/libm/mathfp/Makefile.am     |  76 ++--
+ newlib/man.xsl                     |  13 +
+ newlib/refcontainers.xslt          |  14 +
+ 25 files changed, 1312 insertions(+), 97 deletions(-)
+ create mode 100644 newlib/doc/.gitignore
+ create mode 100755 newlib/doc/chapter-texi2docbook.py
+ create mode 100755 newlib/doc/makedocbook.py
+ create mode 100644 newlib/libc/libc.in.xml
+ create mode 100644 newlib/libm/libm.in.xml
+ create mode 100644 newlib/man.xsl
+ create mode 100644 newlib/refcontainers.xslt
+
+diff --git a/newlib/doc/.gitignore b/newlib/doc/.gitignore
+new file mode 100644
+index 0000000..b6fcb73
+--- /dev/null
++++ b/newlib/doc/.gitignore
+@@ -0,0 +1,3 @@
++# PLY artefacts
++parser.out
++parsetab.py
+diff --git a/newlib/doc/chapter-texi2docbook.py b/newlib/doc/chapter-texi2docbook.py
+new file mode 100755
+index 0000000..34fed6e
+--- /dev/null
++++ b/newlib/doc/chapter-texi2docbook.py
+@@ -0,0 +1,137 @@
++#!/usr/bin/env python
++#
++# python script to convert the handwritten chapter .texi files which include
++# the generated files for each function to equivalent DocBook XML
++#
++# This has very a simple, fixed idea about how those chapter .texi files will be
++# structured
++#
++
++from __future__ import print_function
++from enum import Enum
++import sys
++import re
++
++class State(Enum):
++    normal = 0
++    para = 1
++    table = 2
++    enumerate = 3
++    skip = 4
++
++def main():
++    state = State.normal
++    first_row = True
++    first_node = True
++
++    print ('<?xml version="1.0" encoding="UTF-8"?>')
++    print ('<!DOCTYPE reference PUBLIC "-//OASIS//DTD DocBook V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">')
++
++    for l in sys.stdin.readlines():
++	l = l.rstrip()
++
++	# transform < and >
++	l = l.replace("<", "&lt;")
++	l = l.replace(">", "&gt;")
++
++	# transform @file{foo} to <filename>foo</filename>
++	l = re.sub("@file{(.*?)}", "<filename>\\1</filename>", l)
++	# ditto code
++	l = re.sub("@code{(.*?)}", "<code>\\1</code>", l)
++	# ditto dfn
++	l = re.sub("@dfn{(.*?)}", "<firstterm>\\1</firstterm>", l)
++	# ditto emph
++	l = re.sub("@emph{(.*?)}", "<emphasis>\\1</emphasis>", l)
++	# ditto samp
++	l = re.sub("@samp{(.*?)}", "<literal>\\1</literal>", l)
++	# ditto var
++	l = re.sub("@var{(.*?)}", "<varname>\\1</varname>", l)
++
++	# remove @exdent
++	l = l.replace("@exdent", "", 1)
++	# remove @noindent
++	l = l.replace("@noindent", "", 1)
++
++	if l.startswith("@node"):
++	    l = l.replace("@node", "", 1)
++	    l = l.strip()
++	    l = l.lower()
++	    if first_node:
++		print ('<reference id="%s" xmlns:xi="http://www.w3.org/2001/XInclude">' % l.replace(' ', '_'))
++		first_node = False
++	    continue
++	elif l.startswith("@chapter "):
++	    l = l.replace("@chapter ", "", 1)
++	    print ('<title>%s</title>' % l)
++	    print ('<partintro>')
++	    print ('<para>')
++	    state = State.para
++	    continue
++	elif not l:
++	    if state == State.para:
++		print ('</para>')
++		print ('<para>')
++	    continue
++	elif l.startswith("@table"):
++	    # table introduces a 2-column table
++	    l = l.replace("@table @code", "<informaltable><tgroup cols='2'><tbody>")
++	    state = State.table
++	    first_row = True
++	elif l.startswith("@item"):
++	    if state == State.table:
++		if not first_row:
++		    l = "</entry></row>" + l
++		first_row = False
++		l = l.replace("@item", "<row><entry><code>")
++		l = l + "</code></entry><entry>"
++	    elif state == State.enumerate:
++		if not first_row:
++		    l = "</para></listitem>" + l
++		first_row = False
++		l = l.replace("@item", "<listitem><para>")
++	elif l.startswith("@end table"):
++	    l = l.replace("@end table", "</entry></row></tbody></tgroup></informaltable>")
++	    state = State.para
++	elif l.startswith("@enumerate"):
++	    if state == State.para:
++		l = "</para>" + l
++	    state = State.enumerate
++	    l = l.replace("@enumerate", "<orderedlist>")
++	    first_row = True
++	elif l.startswith("@end enumerate"):
++	    if state == State.enumerate:
++		l = l.replace("@end enumerate", "</para></listitem></orderedlist><para>")
++		state = State.para
++	elif l.startswith("@menu"):
++	    if state == State.para:
++		print("</para>")
++	    print ('</partintro>')
++	    state = State.skip
++	    continue
++	elif l.startswith("@endmenu"):
++	    state = State.normal
++	    continue
++	elif (l.startswith("@page") or l.startswith("@cindex") or
++	      l.startswith("@findex") or l.startswith("@example") or
++	      l.startswith("@end example") or l.startswith("@ifset") or
++	      l.startswith("@end ifset")):
++	    continue
++	elif l.startswith("@include "):
++	    l = l.replace("@include ", "", 1)
++	    l = l.replace(".def", ".xml", 1)
++	    print ('<xi:include href="%s"/>' % l.strip())
++
++	# we can skip over everything between @menu and @endmenu
++	if state == State.skip:
++	    continue
++
++	match = re.match('@[a-z]+', l)
++	if match:
++	    print ("texinfo command %s ?" % match.group(), file=sys.stderr)
++
++	print (l)
++
++    print ('</reference>')
++
++if __name__ == "__main__" :
++    main()
+diff --git a/newlib/doc/makedocbook.py b/newlib/doc/makedocbook.py
+new file mode 100755
+index 0000000..6dd4657
+--- /dev/null
++++ b/newlib/doc/makedocbook.py
+@@ -0,0 +1,783 @@
++#!/usr/bin/env python
++#
++# python script to process makedoc instructions in a source file and produce
++# DocBook XML output
++#
++
++#
++# This performs 3 stages of processing on it's input, in a similar fashion
++# to makedoc:
++#
++# 1. Discard everything outside of /*  */ comments
++# 2. Identify lines which contains commands (a single uppercase word)
++# 3. Apply each command to the text of the following lines (up to the next
++#    command or the end of the comment block), to produce some output
++#
++# The resulting output contains one or more DocBook XML refentry elements.
++#
++# To make the output a valid XML document which can be xincluded, those refentry
++# elements are contained by a refcontainer element.  refcontainer is not part of
++# the DocBook DTD and should be removed by a suitable XSLT.
++#
++
++from __future__ import print_function
++
++import sys
++import re
++from optparse import OptionParser
++import lxml.etree
++import ply.lex as lex
++import ply.yacc as yacc
++
++rootelement = None # root element of the XML tree
++refentry = None # the current refentry
++verbose = 0
++
++def dump(s, stage, threshold = 1):
++    if verbose > threshold:
++	print('*' * 40, file=sys.stderr)
++	print(stage, file=sys.stderr)
++	print('*' * 40, file=sys.stderr)
++	print('%s' % s, file=sys.stderr)
++	print('*' * 40, file=sys.stderr)
++
++#
++# Stage 1
++#
++
++def skip_whitespace_and_stars(i, src):
++
++    while i < len(src) and (src[i].isspace() or (src[i] == '*' and src[i+1] != '/')):
++	i += 1
++
++    return i
++
++# Discard everything not inside '/*  */' style-comments which start at column 0
++# Discard any leading blank space or '*'
++# Discard a single leading '.'
++# Discard blank lines after a blank line
++def comment_contents_generator(src):
++    i = 0
++
++    while i < len(src) - 2:
++	if src[i] == '\n' and src[i+1] == '/' and src[i+2] == '*':
++	    i = i + 3
++
++	    i = skip_whitespace_and_stars(i, src)
++
++	    if src[i] == '.':
++		i += 1
++
++	    while i < len(src):
++		if src[i] == '\n':
++		    yield '\n'
++		    i += 1
++
++		    # allow a single blank line
++		    if i < len(src) and src[i] == '\n':
++			yield '\n'
++			i += 1
++
++		    i = skip_whitespace_and_stars(i, src)
++
++		elif src[i] == '*' and src[i+1] == '/':
++		    i = i + 2
++		    # If we have just output \n\n, this adds another blank line.
++		    # This is the only way a double blank line can occur.
++		    yield '\nEND\n'
++		    break
++		else:
++		    yield src[i]
++		    i += 1
++	else:
++	    i += 1
++
++def remove_noncomments(src):
++    src = '\n' + src
++    dst = ''.join(comment_contents_generator(src))
++    dump(dst, 'extracted from comments')
++
++    return dst
++
++#
++# Stage 2
++#
++
++# A command is a single word, all uppercase, and alone on a line
++#
++# Some 'QUICKREF' lines have trailing text.  This is probably a markup error,
++# but accept it.
++def iscommand(l):
++    if re.match('^[A-Z_]+\s*$', l) or l.startswith('QUICKREF'):
++	return True
++    return False
++
++def command_block_generator(content):
++    command = 'START'
++    text = ''
++
++    for l in content.splitlines():
++	if iscommand(l):
++	    yield (command, text)
++	    command = l.rstrip()
++	    text = ''
++	else:
++	    text = text + l + '\n'
++    yield (command, text)
++
++# Look for commands, which give instructions how to process the following input
++def process(content):
++    content = content.lstrip()
++
++    dump(content, 'about to process for commands')
++
++    # process into a list of tuples of commands and the associated following text
++    # it is important to maintain the order of the sections the commands generate
++    processed = list(command_block_generator(content))
++
++    return processed
++
++#
++# Stage 3
++#
++
++#  invoke each command on it's text
++def perform(processed):
++    for i in processed:
++	c = i[0].rstrip()
++	t = i[1].strip() + '\n'
++
++	if verbose:
++	    print("performing command '%s'" % c, file=sys.stderr)
++
++	if c in command_dispatch_dict:
++	    command_dispatch_dict[c](c, t)
++	else:
++	    print("command '%s' is not recognized" % c, file=sys.stderr)
++	    # the text following an unrecognized command is discarded
++
++# FUNCTION (aka TYPEDEF)
++#
++def function(c, l):
++    global refentry
++    global rootelement
++
++    l = l.strip()
++    if verbose:
++	print('FUNCTION %s' % l, file=sys.stderr)
++
++    # Some pages use an en-dash '--' rather than an em-dash '---', so that
++    # should be handled as well, but that is probably a markup error
++    if '---' in l:
++	separator = '---'
++    elif '--' in l:
++	separator = '--'
++
++    if ';' in l:
++	# fpclassify has an unusual format we also need to handle
++	spliton = ';'
++	l = l.splitlines()[0]
++    elif len(l.splitlines()) > 1:
++	# a few pages like mktemp have two '---' lines
++	spliton = ';'
++	o = ''
++	for i in l.splitlines():
++	     if separator in i:
++		 o += i + ';'
++	     else:
++		 o += i
++	l = o[:-1]
++    else:
++	spliton = '\n'
++
++    namelist = []
++    descrlist = []
++    for a in l.split(spliton):
++	(n, d) = a.split(separator, 1)
++	namelist = namelist + n.split(',')
++	descrlist = descrlist + [d]
++
++    # only copysign and log1p use <[ ]> markup in descr,
++    # only gets() uses << >> markup
++    # but we should handle it correctly
++    descr = line_markup_convert(', '.join(descrlist))
++
++    # fpclassify includes an 'and' we need to discard
++    namelist = map(lambda v: re.sub('^and ', '', v.strip(), 1), namelist)
++    # strip off << >> surrounding name
++    namelist = map(lambda v: v.strip().lstrip('<').rstrip('>'), namelist)
++
++    if verbose:
++	print(namelist, file=sys.stderr)
++    # additional alternate names may also appear in INDEX commands
++
++    # create the root element if needed
++    if rootelement is None:
++	rootelement = lxml.etree.Element('refentrycontainer')
++
++    # FUNCTION implies starting a new refentry
++    if refentry is not None:
++	print("FUNCTION without NEWPAGE", file=sys.stderr)
++	exit(1)
++
++    # create the refentry
++    refentry = lxml.etree.SubElement(rootelement, 'refentry')
++    refentry.append(lxml.etree.Comment(' Generated by makedocbook.py '))
++    refentry.set('id', namelist[0].lstrip('_'))
++
++    refmeta = lxml.etree.SubElement(refentry, 'refmeta')
++    # refentrytitle will be same as refdescriptor, the primary name
++    refentrytitle = lxml.etree.SubElement(refmeta, 'refentrytitle')
++    refentrytitle.text = namelist[0]
++    manvolnum = lxml.etree.SubElement(refmeta, 'manvolnum')
++    manvolnum.text = '3'
++
++    refnamediv = lxml.etree.SubElement(refentry, 'refnamediv')
++    # refdescriptor is the primary name, assume we should use the one which
++    # appears first in the list
++    refdescriptor = lxml.etree.SubElement(refnamediv, 'refdescriptor')
++    refdescriptor.text = namelist[0]
++    # refname elements exist for all alternate names
++    for n in namelist:
++	refname = lxml.etree.SubElement(refnamediv, 'refname')
++	refname.text = n
++    refpurpose = lxml.etree.SubElement(refnamediv, 'refpurpose')
++    refnamediv.replace(refpurpose, lxml.etree.fromstring('<refpurpose>' + descr + '</refpurpose>'))
++
++    # Only FUNCTION currently exists, which implies that the SYNOPSIS should be
++    # a funcsynopsis.  If TYPEDEF was to be added, SYNOPSIS should be processed
++    # in a different way, probably producing a refsynopsis.
++
++# INDEX
++# may occur more than once for each FUNCTION giving alternate names this
++# function should be indexed under
++#
++def index(c, l):
++    l = l.strip()
++
++    if verbose:
++	print('INDEX %s' % l, file=sys.stderr)
++
++    # discard anything after the first word
++    l = l.split()[0]
++
++    # adds another alternate refname
++    refnamediv = refentry.find('refnamediv')
++
++    # as long as it doesn't already exist
++    if not refnamediv.xpath(('refname[.="%s"]') % l):
++	refname = lxml.etree.SubElement(refnamediv, 'refname')
++	refname.text = l
++	if verbose > 1:
++	    print('added refname %s' % l, file=sys.stderr)
++    else:
++	if verbose > 1:
++	    print('duplicate refname %s discarded' % l, file=sys.stderr)
++
++    # to validate, it seems we need to maintain refnamediv elements in a certain order
++    refnamediv[:] = sorted(refnamediv, key = lambda x: x.tag)
++
++
++# SYNOPSIS aka ANSI_SYNOPSIS
++# ANSI-style synopsis
++#
++# Note that makedoc would also process <<code>> markup here, but there are no
++# such uses.
++#
++def synopsis(c, t):
++    refsynopsisdiv = lxml.etree.SubElement(refentry, 'refsynopsisdiv')
++    funcsynopsis = lxml.etree.SubElement(refsynopsisdiv, 'funcsynopsis')
++
++    s = ''
++    for l in t.splitlines():
++	if re.match('\s*[#[]', l):
++	    # a #include, #define etc.
++	    # fpclassify contains some comments in [ ] brackets
++	    funcsynopsisinfo = lxml.etree.SubElement(funcsynopsis, 'funcsynopsisinfo')
++	    funcsynopsisinfo.text = l.strip() + '\n'
++	else:
++	    s = s + l
++
++	    # some prototypes are missing the terminating ';', so add it if needed
++	    if s.endswith(')'):
++		s = s + ';'
++
++	    if ';' in s:
++		synopsis_for_prototype(funcsynopsis, s)
++		s = ''
++
++    if s.strip():
++	print("surplus synopsis '%s'" % s, file=sys.stderr)
++	raise
++
++def synopsis_for_prototype(funcsynopsis, s):
++    s = s.strip()
++
++    # funcsynopsis has a very detailed content model, so we need to massage the
++    # bare prototype into it.  Fortunately, since the parameter names are marked
++    # up, we have enough information to do this.
++    for fp in s.split(';'):
++	fp = fp.strip()
++	if fp:
++
++	    if verbose:
++		print("'%s'" % fp, file=sys.stderr)
++
++	    match = re.match(r'(.*?)([\w\d]*) ?\((.*)\)', fp)
++
++	    if verbose:
++		print(match.groups(), file=sys.stderr)
++
++	    funcprototype = lxml.etree.SubElement(funcsynopsis, 'funcprototype')
++	    funcdef = lxml.etree.SubElement(funcprototype, 'funcdef')
++	    funcdef.text = match.group(1)
++	    function = lxml.etree.SubElement(funcdef, 'function')
++	    function.text = match.group(2)
++
++	    if match.group(3).strip() == 'void':
++		void = lxml.etree.SubElement(funcprototype, 'void')
++	    else:
++		# Split parameters on ',' except if it is inside ()
++		for p in re.split(',(?![^()]*\))', match.group(3)):
++		    p = p.strip()
++
++		    if verbose:
++			print(p, file=sys.stderr)
++
++		    if p == '...':
++			varargs = lxml.etree.SubElement(funcprototype, 'varargs')
++		    else:
++			paramdef = lxml.etree.SubElement(funcprototype, 'paramdef')
++			parameter = lxml.etree.SubElement(paramdef, 'parameter')
++
++			# <[ ]> enclose the parameter name
++			match2 = re.match('(.*)<\[(.*)\]>(.*)', p)
++
++			if verbose:
++			    print(match2.groups(), file=sys.stderr)
++
++			paramdef.text = match2.group(1)
++			parameter.text = match2.group(2)
++			parameter.tail = match2.group(3)
++
++
++# DESCRIPTION
++# (RETURNS, ERRORS, PORTABILITY, BUGS, WARNINGS, SEEALSO, NOTES  are handled the same)
++#
++# Create a refsect with a title corresponding to the command
++#
++# Nearly all the the existing DESCRIPTION contents could be transformed into
++# DocBook with a few regex substitutions.  Unfortunately, pages like sprintf and
++# sscanf, have very complex layout using nested tables and itemized lists, which
++# it is best to parse in order to transform correctly.
++#
++
++def refsect(t, s):
++    refsect = lxml.etree.SubElement(refentry, 'refsect1')
++    title = lxml.etree.SubElement(refsect, 'title')
++    title.text = t.title()
++
++    if verbose:
++	print('%s has %d paragraphs' % (t, len(s.split('\n\n'))) , file=sys.stderr)
++
++    if verbose > 1:
++	dump(s, 'before lexing')
++
++	# dump out lexer token sequence
++	lex.input(s)
++	for tok in lexer:
++	    print(tok, file=sys.stderr)
++
++    # parse the section text for makedoc markup and the few pieces of texinfo
++    # markup we understand, and output an XML marked-up string
++    xml = parser.parse(s, tracking=True, debug=(verbose > 2))
++
++    dump(xml, 'after parsing')
++
++    xml = '<refsect1>' + xml + '</refsect1>'
++
++    refsect.extend(lxml.etree.fromstring(xml))
++
++def seealso(c, t):
++    refsect('SEE ALSO', t)
++
++# NEWPAGE
++#
++# start a new refentry
++# only actually used by efgcvt.c
++
++def newpage(c, t):
++    global refentry
++    refentry = None
++
++# command dispatch table
++
++def discarded(c, t):
++    return
++
++command_dispatch_dict = {
++    'FUNCTION'		: function,
++    'TYPEDEF'		: function,	# TYPEDEF is not currently used, but described in doc.str
++    'INDEX'		: index,
++    'TRAD_SYNOPSIS'	: discarded,	# K&R-style synopsis, obsolete and discarded
++    'ANSI_SYNOPSIS'	: synopsis,
++    'SYNOPSIS'		: synopsis,
++    'DESCRIPTION'	: refsect,
++    'RETURNS'		: refsect,
++    'ERRORS'		: refsect,
++    'PORTABILITY'	: refsect,
++    'BUGS'		: refsect,
++    'WARNINGS'		: refsect,
++    'SEEALSO'		: seealso,
++    'NOTES'		: refsect,	# NOTES is not described in doc.str, so is currently discarded by makedoc, but that doesn't seem right
++    'QUICKREF'		: discarded,	# The intent of QUICKREF and MATHREF is not obvious, but they don't generate any output currently
++    'MATHREF'		: discarded,
++    'START'		: discarded,	# a START command is inserted to contain the text before the first command
++    'END'		: discarded,	# an END command is inserted merely to terminate the text for the last command in a comment block
++    'NEWPAGE'		: newpage,
++}
++
++#
++# Utility functions
++#
++
++# apply transformations which are easy to do in-place
++def line_markup_convert(p):
++    s = p;
++
++    # process the texinfo escape for an @
++    s = s.replace('@@', '@')
++
++    # escape characters not allowed in XML
++    s = s.replace('&','&amp;')
++    s = s.replace('<','&lt;')
++    s = s.replace('>','&gt;')
++
++    # convert <<somecode>> to <code>somecode</code> and <[var]> to
++    # <varname>var</varname>
++    # also handle nested << <[ ]> >> correctly
++    s = s.replace('&lt;&lt;','<code>')
++    s = s.replace('&lt;[','<varname>')
++    s = s.replace(']&gt;','</varname>')
++    s = s.replace('&gt;&gt;','</code>')
++
++    # also convert some simple texinfo markup
++    # convert @emph{foo} to <emphasis>foo</emphasis>
++    s = re.sub('@emph{(.*?)}', '<emphasis>\\1</emphasis>', s)
++    # convert @minus{} to U+2212 MINUS SIGN
++    s = s.replace('@minus{}', '&#x2212;')
++    # convert @dots{} to U+2026 HORIZONTAL ELLIPSIS
++    s = s.replace('@dots{}', '&#x2026;')
++
++    # very hacky way of dealing with @* to force a newline
++    s = s.replace('@*', '</para><para>')
++
++    if (verbose > 3) and (s != p):
++	print('%s-> line_markup_convert ->\n%s' % (p, s), file=sys.stderr)
++
++    return s
++
++#
++# lexer
++#
++
++texinfo_commands = {
++    'ifnottex' : 'IFNOTTEX',
++    'end ifnottex' : 'ENDIFNOTTEX',
++    'tex' : 'IFTEX',
++    'end tex' : 'ENDIFTEX',
++    'comment' : 'COMMENT',
++    'c ' : 'COMMENT',
++    }
++
++# token names
++tokens = [
++    'BLANKLINE',
++    'BULLETEND',
++    'BULLETSTART',
++    'COURIER',
++    'EOF',
++    'ITEM',
++    'TABLEEND',
++    'TABLESTART',
++    'TEXINFO',
++    'TEXT',
++] + list(set(texinfo_commands.values()))
++
++# regular expression rules for tokens, in priority order
++# (all these expressions should match a whole line)
++def t_TEXINFO(t):
++    # this matches any @command. but not @command{} which just happens to be at
++    # the start of a line
++    r'@\w+[^{]*?\n'
++
++    # if the line starts with a known texinfo command, change t.type to the
++    # token for that command
++    for k in texinfo_commands.keys():
++	if t.value[1:].startswith(k):
++	    t.type = texinfo_commands[k]
++	    break
++
++    return t
++
++def t_COURIER(t):
++    r'[.|].*\n'
++    t.value = line_markup_convert(t.value[1:])
++    return t
++
++def t_BULLETSTART(t):
++    r'O\+\n'
++    return t
++
++def t_BULLETEND(t):
++    r'O-\n'
++    return t
++
++def t_TABLESTART(t):
++    r'o\+\n'
++    return t
++
++def t_TABLEEND(t):
++    r'o-\n'
++    return t
++
++def t_ITEM(t):
++    r'o\s.*\n'
++    t.value = re.sub('o\s', '', lexer.lexmatch.group(0), 1)
++    t.value = line_markup_convert(t.value)
++    return t
++
++def t_TEXT(t):
++    r'.+\n'
++    t.value = line_markup_convert(t.value)
++    t.lexer.lineno += 1
++    return t
++
++def t_BLANKLINE(t):
++    r'\n'
++    t.lexer.lineno += 1
++    return t
++
++def t_eof(t):
++    if hasattr(t.lexer,'at_eof'):
++	# remove eof flag ready for lexing next input
++	delattr(t.lexer,'at_eof')
++	t.lexer.lineno = 0
++	return None
++
++    t.type = 'EOF'
++    t.lexer.at_eof = True;
++
++    return t
++
++# Error handling rule
++def t_error(t):
++    print("tokenization error, remaining text '%s'" % t.value, file=sys.stderr)
++    exit(1)
++
++lexer = lex.lex()
++
++#
++# parser
++#
++
++def parser_verbose(p):
++    if verbose > 2:
++	print(p[0], file=sys.stderr)
++
++def p_input(p):
++    '''input : paragraph
++             | input paragraph'''
++    if len(p) == 3:
++	p[0] = p[1] + '\n' + p[2]
++    else:
++	p[0] = p[1]
++    parser_verbose(p)
++
++# Strictly, text at top level should be paragraphs (i.e terminated by a
++# BLANKLINE), while text contained in rows or bullets may not be, but this
++# grammar doesn't enforce that for simplicity's sake.
++def p_paragraph(p):
++    '''paragraph : paragraph_content maybe_eof_or_blankline'''
++    p[0] = '<para>\n' + p[1] + '</para>'
++    parser_verbose(p)
++
++def p_paragraph_content(p):
++    '''paragraph_content : paragraph_line
++                         | paragraph_line paragraph_content'''
++    if len(p) == 3:
++	p[0] = p[1] + p[2]
++    else:
++	p[0] = p[1]
++    parser_verbose(p)
++
++def p_paragraph_line(p):
++    '''paragraph_line : TEXT
++                      | texinfocmd
++                      | courierblock
++                      | table
++                      | bulletlist'''
++    p[0] = p[1]
++
++def p_empty(p):
++    'empty :'
++    p[0] = ''
++
++def p_maybe_eof_or_blankline(p):
++    '''maybe_eof_or_blankline : empty
++                              | EOF
++                              | BLANKLINE
++                              | BLANKLINE EOF'''
++    p[0] = ''
++
++def p_maybe_lines(p):
++    '''maybe_lines : empty
++                   | paragraph maybe_lines'''
++    if len(p) == 3:
++	p[0] = p[1] + p[2]
++    else:
++	p[0] = p[1]
++    parser_verbose(p)
++
++def p_maybe_blankline(p):
++    '''maybe_blankline : empty
++                       | BLANKLINE'''
++    p[0] = ''
++
++def p_courierblock(p):
++    '''courierblock : courier'''
++    p[0] = '<code>' + p[1] + '</code>'
++    parser_verbose(p)
++
++def p_courier(p):
++    '''courier : COURIER
++               | COURIER courier'''
++    if len(p) == 3:
++	p[0] = p[1] + p[2]
++    else:
++	p[0] = p[1]
++    parser_verbose(p)
++
++def p_bullet(p):
++    '''bullet : ITEM maybe_lines
++              | ITEM BLANKLINE maybe_lines'''
++    if len(p) == 3:
++	# Glue any text in ITEM into the first para of maybe_lines
++	# (This is an unfortunate consequence of the line-based tokenization we do)
++	if p[2].startswith('<para>'):
++	    p[0] = '<listitem><para>' + p[1] + p[2][len('<para>'):] + '</listitem>'
++	else:
++	    p[0] = '<listitem><para>' + p[1] + '</para>' + p[2] + '</listitem>'
++    else:
++	p[0] = '<listitem><para>' + p[1] + '</para>' + p[3] + '</listitem>'
++    parser_verbose(p)
++
++def p_bullets(p):
++    '''bullets : bullet
++               | bullet bullets'''
++    if len(p) == 3:
++	p[0] = p[1] + '\n' + p[2]
++    else:
++	p[0] = p[1]
++    parser_verbose(p)
++
++def p_bulletlist(p):
++    '''bulletlist : BULLETSTART bullets BULLETEND maybe_blankline'''
++    p[0] = '<itemizedlist>' + p[2] + '</itemizedlist>'
++    parser_verbose(p)
++
++def p_row(p):
++    '''row : ITEM maybe_lines
++           | ITEM BLANKLINE maybe_lines'''
++    if len(p) == 3:
++	p[0] = '<row><entry><code>' + p[1] + '</code></entry><entry>' + p[2] + '</entry></row>'
++    else:
++	p[0] = '<row><entry><code>' + p[1] + '</code></entry><entry>' + p[3] + '</entry></row>'
++    parser_verbose(p)
++
++def p_rows(p):
++    '''rows : row
++            | row rows'''
++    if len(p) == 3:
++	p[0] = p[1] + '\n' + p[2]
++    else:
++	p[0] = p[1]
++    parser_verbose(p)
++
++def p_table(p):
++    '''table : TABLESTART rows TABLEEND maybe_blankline'''
++    p[0] = '<informaltable><tgroup cols="2"><tbody>' + p[2] + '</tbody></tgroup></informaltable>'
++    parser_verbose(p)
++
++def p_texinfocmd(p):
++    '''texinfocmd : unknown_texinfocmd
++                  | comment
++                  | nottex
++                  | tex'''
++    p[0] = p[1]
++
++def p_unknown_texinfocmd(p):
++    '''unknown_texinfocmd : TEXINFO'''
++    print("unknown texinfo command '%s'" % p[1].strip(), file=sys.stderr)
++    p[0] = p[1]
++    parser_verbose(p)
++
++def p_nottex(p):
++    '''nottex : IFNOTTEX paragraph_content ENDIFNOTTEX'''
++    p[0] = p[2]
++
++def p_tex(p):
++    '''tex : IFTEX paragraph_content ENDIFTEX'''
++    # text for TeX formatter inside @iftex is discarded
++    p[0] = ''
++
++def p_comment(p):
++    '''comment : COMMENT'''
++    # comment text is discarded
++    p[0] = ''
++
++def p_error(t):
++    print('parse error at line %d, token %s, next token %s' % (t.lineno, t, parser.token()), file=sys.stderr)
++    exit(1)
++
++parser = yacc.yacc(start='input')
++
++#
++#
++#
++
++def main(file):
++    content = file.read()
++    content = remove_noncomments(content)
++    processed = process(content)
++    perform(processed)
++
++    # output the XML tree
++    s = lxml.etree.tostring(rootelement, pretty_print=True)
++
++    if not s:
++	print('No output produced (perhaps the input has no makedoc markup?)', file=sys.stderr)
++	exit(1)
++
++    print(s)
++
++    # warn about texinfo commands which didn't get processed
++    match = re.search('@[a-z*]+', s)
++    if match:
++	print('texinfo command %s remains in output' % match.group(), file=sys.stderr)
++
++#
++#
++#
++
++if __name__ == '__main__' :
++    options = OptionParser()
++    options.add_option('-v', '--verbose', action='count', dest = 'verbose')
++    (opts, args) = options.parse_args()
++
++    verbose = opts.verbose
++
++    if len(args) > 0:
++	main(open(args[0], 'rb'))
++    else:
++	main(sys.stdin)
+diff --git a/newlib/libc/Makefile.am b/newlib/libc/Makefile.am
+index 21a74fe..b70c59e 100644
+--- a/newlib/libc/Makefile.am
++++ b/newlib/libc/Makefile.am
+@@ -223,6 +223,20 @@ info_TEXINFOS = libc.texinfo
+ libc_TEXINFOS = sigset.texi extra.texi posix.texi stdio64.texi iconvset.texi \
+ 	targetdep.tex $(SUBDEFS)
+ 
++docbook: $(SUBDEFS) libc.in.xml
++	xsltproc --xinclude --path ${builddir} --nonet ${srcdir}/../refcontainers.xslt ${srcdir}/libc.in.xml >libc.xml
++	-xmllint --xinclude --path ${builddir} --postvalid --noent --nonet --noout libc.xml
++	xmlto --skip-validation --searchpath ${builddir} html-nochunks --stringparam funcsynopsis.style=ansi libc.xml
++	xmlto --skip-validation --searchpath ${builddir} man -m ${srcdir}/../man.xsl libc.xml
++
++doc: docbook
++
++install-data-local:
++	mkdir -p $(DESTDIR)$(htmldir)
++	$(INSTALL_DATA) libc.html $(DESTDIR)$(htmldir)/
++	mkdir -p $(DESTDIR)$(mandir)/man3
++	$(INSTALL_DATA) *.3 $(DESTDIR)$(mandir)/man3
++
+ .PHONY: force
+ force:
+ 
+@@ -230,7 +244,7 @@ CLEANFILES = $(CRT0) \
+ 	sigset.texi stmp-sigset extra.texi stmp-extra \
+ 	stdio64.texi stmp-stdio64 targetdep.tex stmp-targetdep \
+ 	tmp-sigset.texi tmp-iconvset.texi tmp-extra.texi \
+-	tmp-stdio64.texi tmp-posix.texi tmp-targetdep.texi
++	tmp-stdio64.texi tmp-posix.texi tmp-targetdep.texi *.3 *.xml
+ 
+ ACLOCAL_AMFLAGS = -I .. -I ../..
+ CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
+diff --git a/newlib/libc/ctype/Makefile.am b/newlib/libc/ctype/Makefile.am
+index 785bf7a..03fbe4b 100644
+--- a/newlib/libc/ctype/Makefile.am
++++ b/newlib/libc/ctype/Makefile.am
+@@ -98,19 +98,33 @@ CHEWOUT_FILES= \
+ 	wctrans.def	\
+ 	wctype.def	
+ 
+-SUFFIXES = .def
++SUFFIXES = .def .xml
+ 
+ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+ 
+ .c.def:
+ 	$(CHEW) < $< > $*.def 2> $*.ref
+-	touch stmp-def
++	@touch stmp-def
+ 
++CHAPTER = ctype.tex
+ TARGETDOC = ../tmp.texi
+ 
+-doc: $(CHEWOUT_FILES)
+-	cat $(srcdir)/ctype.tex >> $(TARGETDOC)
++doc-texinfo: $(CHEWOUT_FILES)
++	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
+ 
+-CLEANFILES = $(CHEWOUT_FILES) *.ref
++DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
++DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
++DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
++
++.c.xml:
++	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
++	@touch stmp-xml
++
++doc-docbook: $(DOCBOOK_OUT_FILES)
++	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/$(CHAPTER) >../$(DOCBOOK_CHAPTER)
++
++doc: doc-docbook doc-texinfo
++
++CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
+ 
+ $(lpfx)ctype_.$(oext): ctype_.c ctype_iso.h ctype_cp.h
+diff --git a/newlib/libc/libc.in.xml b/newlib/libc/libc.in.xml
+new file mode 100644
+index 0000000..615a069
+--- /dev/null
++++ b/newlib/libc/libc.in.xml
+@@ -0,0 +1,25 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
++<book id="libc" xmlns:xi="http://www.w3.org/2001/XInclude">
++  <bookinfo>
++    <productname>newlib</productname>
++  </bookinfo>
++
++  <!-- XXX: also should put the rest of the content from libc.texinfo here, but I don't need it for just generating manpages -->
++  <xi:include href="stdlib.xml"/>
++  <xi:include href="ctype.xml"/>
++  <xi:include href="stdio.xml"/>
++  <xi:include href="stdio64.xml"/>
++
++  <xi:include href="strings.xml"/>
++  <xi:include href="wcstrings.xml"/>
++  <xi:include href="signal.xml"/>
++
++  <xi:include href="time.xml"/>
++  <xi:include href="locale.xml"/>
++  <!-- reent.tex contains fixed content and nothing seems to include the .def made in reent/ -->
++
++  <xi:include href="misc.xml"/>
++  <xi:include href="posix.xml"/>
++  <!-- XXX: stdarg.h and vararg.h are directly described in libc.texinfo -->
++</book>
+diff --git a/newlib/libc/locale/Makefile.am b/newlib/libc/locale/Makefile.am
+index 66cc7ba..545a072 100644
+--- a/newlib/libc/locale/Makefile.am
++++ b/newlib/libc/locale/Makefile.am
+@@ -44,12 +44,25 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+ 
+ .c.def:
+ 	$(CHEW) < $< > $*.def 2> $*.ref
+-	touch stmp-def
++	@touch stmp-def
+ 
++CHAPTER = locale.tex
+ TARGETDOC = ../tmp.texi
+ 
+-doc: $(CHEWOUT_FILES)
+-	cat $(srcdir)/locale.tex >> $(TARGETDOC)
++doc-texinfo: $(CHEWOUT_FILES)
++	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
+ 
+-CLEANFILES = $(CHEWOUT_FILES) *.ref
++DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
++DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
++DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
+ 
++.c.xml:
++	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
++	@touch stmp-xml
++
++doc-docbook: $(DOCBOOK_OUT_FILES)
++	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
++
++doc: doc-docbook doc-texinfo
++
++CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
+diff --git a/newlib/libc/misc/Makefile.am b/newlib/libc/misc/Makefile.am
+index 8ac62a2..6774a13 100644
+--- a/newlib/libc/misc/Makefile.am
++++ b/newlib/libc/misc/Makefile.am
+@@ -29,11 +29,25 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+ 
+ .c.def:
+ 	$(CHEW) < $< > $*.def 2> $*.ref
+-	touch stmp-def
++	@touch stmp-def
+ 
++CHAPTER = misc.tex
+ TARGETDOC = ../tmp.texi
+ 
+-doc: $(CHEWOUT_FILES)
+-	cat $(srcdir)/misc.tex >> $(TARGETDOC)
++doc-texinfo: $(CHEWOUT_FILES)
++	cat $(srcdir)/${CHAPTER} >> $(TARGETDOC)
+ 
+-CLEANFILES = $(CHEWOUT_FILES) *.ref
++DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
++DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
++DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
++
++.c.xml:
++	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
++	@touch stmp-xml
++
++doc-docbook: $(DOCBOOK_OUT_FILES)
++	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
++
++doc: doc-docbook doc-texinfo
++
++CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
+diff --git a/newlib/libc/posix/Makefile.am b/newlib/libc/posix/Makefile.am
+index 0056cc1..7dae470 100644
+--- a/newlib/libc/posix/Makefile.am
++++ b/newlib/libc/posix/Makefile.am
+@@ -61,13 +61,27 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+ 
+ .c.def:
+ 	$(CHEW) < $< > $*.def 2> $*.ref
+-	touch stmp-def
++	@touch stmp-def
+ 
++CHAPTER = posix.tex
+ TARGETDOC = ../tmp.texi
+ 
+-doc: $(CHEWOUT_FILES)
+-	cat $(srcdir)/posix.tex >> $(TARGETDOC)
++doc-texinfo: $(CHEWOUT_FILES)
++	cat $(srcdir)/${CHAPTER} >> $(TARGETDOC)
++
++DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
++DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
++DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
++
++.c.xml:
++	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
++	@touch stmp-xml
++
++doc-docbook: $(DOCBOOK_OUT_FILES)
++	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
++
++doc: doc-docbook doc-texinfo
+ 
+ AM_CFLAGS = -D_GNU_SOURCE
+ 
+-CLEANFILES = $(CHEWOUT_FILES) *.ref
++CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
+diff --git a/newlib/libc/reent/reent.tex b/newlib/libc/reent/reent.tex
+index 881c572..12597be 100644
+--- a/newlib/libc/reent/reent.tex
++++ b/newlib/libc/reent/reent.tex
+@@ -15,8 +15,8 @@ reentrant fashion.
+ @findex reent.h
+ @cindex reentrancy structure
+ These hooks use the structure @code{_reent} defined in @file{reent.h}.
+-A variable defined as @samp{struct _reent} is called a @dfn{reentrancy
+-structure}.  All functions which must manipulate global information are
++A variable defined as @samp{struct _reent} is called a @dfn{reentrancy structure}.
++All functions which must manipulate global information are
+ available in two versions.  The first version has the usual name, and
+ uses a single global instance of the reentrancy structure.  The second
+ has a different name, normally formed by prepending @samp{_} and
+diff --git a/newlib/libc/search/Makefile.am b/newlib/libc/search/Makefile.am
+index defb6bb..34248ee 100644
+--- a/newlib/libc/search/Makefile.am
++++ b/newlib/libc/search/Makefile.am
+@@ -62,7 +62,7 @@ lib_a_CFLAGS = $(AM_CFLAGS)
+ noinst_DATA =
+ endif # USE_LIBTOOL
+ 
+-SUFFIXES = .def
++SUFFIXES = .def .xml
+ 
+ CHEWOUT_FILES = \
+ 	bsearch.def \
+@@ -73,12 +73,23 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+ 
+ .c.def:
+ 	$(CHEW) < $< > $*.def 2> $*.ref
+-	touch stmp-def
++	@touch stmp-def
+ 
+ TARGETDOC = ../tmp.texi
+ 
+-doc: $(CHEWOUT_FILES)
++doc-texinfo: $(CHEWOUT_FILES)
+ 
+-CLEANFILES = $(CHEWOUT_FILES) *.ref
++DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
++DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
++
++.c.xml:
++	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
++	@touch stmp-xml
++
++doc-docbook: $(DOCBOOK_OUT_FILES)
++
++doc: doc-docbook doc-texinfo
++
++CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
+ 
+ include $(srcdir)/../../Makefile.shared
+diff --git a/newlib/libc/signal/Makefile.am b/newlib/libc/signal/Makefile.am
+index 7a7e64c..04b2ccc 100644
+--- a/newlib/libc/signal/Makefile.am
++++ b/newlib/libc/signal/Makefile.am
+@@ -23,17 +23,31 @@ include $(srcdir)/../../Makefile.shared
+ 
+ CHEWOUT_FILES = psignal.def raise.def signal.def
+ 
+-SUFFIXES = .def
++SUFFIXES = .def .xml
+ 
+ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+ 
+ .c.def:
+ 	$(CHEW) < $< > $*.def 2> $*.ref
+-	touch stmp-def
++	@touch stmp-def
+ 
++CHAPTER = signal.tex
+ TARGETDOC = ../tmp.texi
+ 
+-doc: $(CHEWOUT_FILES)
+-	cat $(srcdir)/signal.tex >> $(TARGETDOC)
++doc-texinfo: $(CHEWOUT_FILES)
++	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
+ 
+-CLEANFILES = $(CHEWOUT_FILES) *.ref
++DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
++DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
++DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
++
++.c.xml:
++	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
++	@touch stmp-xml
++
++doc-docbook: $(DOCBOOK_OUT_FILES)
++	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
++
++doc: doc-docbook doc-texinfo
++
++CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
+diff --git a/newlib/libc/stdio/Makefile.am b/newlib/libc/stdio/Makefile.am
+index 0a086e7..c179272 100644
+--- a/newlib/libc/stdio/Makefile.am
++++ b/newlib/libc/stdio/Makefile.am
+@@ -421,20 +421,34 @@ CHEWOUT_FILES = \
+ 	vfwprintf.def		\
+ 	vfwscanf.def
+ 
+-SUFFIXES = .def
++SUFFIXES = .def .xml
+ 
+ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+ 
+ .c.def:
+ 	$(CHEW) < $< > $*.def 2> $*.ref
+-	touch stmp-def
++	@touch stmp-def
+ 
++CHAPTER = stdio.tex
+ TARGETDOC = ../tmp.texi
+ 
+-doc: $(CHEWOUT_FILES)
+-	cat $(srcdir)/stdio.tex >> $(TARGETDOC)
++doc-texinfo: $(CHEWOUT_FILES)
++	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
+ 
+-CLEANFILES = $(CHEWOUT_FILES) *.ref
++DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
++DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
++DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
++
++.c.xml:
++	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
++	@touch stmp-xml
++
++doc-docbook: $(DOCBOOK_OUT_FILES)
++	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
++
++doc: doc-docbook doc-texinfo
++
++CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
+ 
+ $(lpfx)clearerr.$(oext): local.h
+ $(lpfx)clearerr_u.$(oext): local.h
+diff --git a/newlib/libc/stdio64/Makefile.am b/newlib/libc/stdio64/Makefile.am
+index 914cbca..b7cacfd 100644
+--- a/newlib/libc/stdio64/Makefile.am
++++ b/newlib/libc/stdio64/Makefile.am
+@@ -52,18 +52,31 @@ CHEWOUT_FILES = \
+ 	ftello64.def		\
+ 	tmpfile64.def
+ 
+-SUFFIXES = .def
++SUFFIXES = .def .xml
+ 
+ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+ 
+ .c.def:
+ 	$(CHEW) < $< > $*.def 2> $*.ref
+-	touch stmp-def
++	@touch stmp-def
+ 
++CHAPTER = stdio64.tex
+ TARGETDOC = ../tmp.texi
+ 
+-doc: $(CHEWOUT_FILES)
+-	cat $(srcdir)/stdio64.tex >> $(TARGETDOC)
++doc-texinfo: $(CHEWOUT_FILES)
++	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
+ 
+-CLEANFILES = $(CHEWOUT_FILES) *.ref
++DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
++DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
++DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
+ 
++.c.xml:
++	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
++	@touch stmp-xml
++
++doc-docbook: $(DOCBOOK_OUT_FILES)
++	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
++
++doc: doc-docbook doc-texinfo
++
++CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
+diff --git a/newlib/libc/stdlib/Makefile.am b/newlib/libc/stdlib/Makefile.am
+index c86010a..97ec905 100644
+--- a/newlib/libc/stdlib/Makefile.am
++++ b/newlib/libc/stdlib/Makefile.am
+@@ -290,20 +290,34 @@ CHEWOUT_FILES= \
+ 	wcstombs.def	\
+ 	wctomb.def	
+ 
+-SUFFIXES = .def
++SUFFIXES = .def .xml
+ 
+ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+ 
+ .c.def:
+ 	$(CHEW) < $< > $*.def 2> $*.ref
+-	touch stmp-def
++	@touch stmp-def
+ 
++CHAPTER = stdlib.tex
+ TARGETDOC = ../tmp.texi
+ 
+-doc: $(CHEWOUT_FILES)
+-	cat $(srcdir)/stdlib.tex >> $(TARGETDOC)
++doc-texinfo: $(CHEWOUT_FILES)
++	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
+ 
+-CLEANFILES = $(CHEWOUT_FILES) *.ref
++DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
++DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
++DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
++
++.c.xml:
++	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
++	@touch stmp-xml
++
++doc-docbook: $(DOCBOOK_OUT_FILES)
++	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
++
++doc: doc-docbook doc-texinfo
++
++CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
+ 
+ $(lpfx)dtoa.$(oext): dtoa.c mprec.h
+ $(lpfx)ldtoa.$(oext): ldtoa.c mprec.h
+diff --git a/newlib/libc/string/Makefile.am b/newlib/libc/string/Makefile.am
+index ba49af8..fc4602f 100644
+--- a/newlib/libc/string/Makefile.am
++++ b/newlib/libc/string/Makefile.am
+@@ -145,18 +145,31 @@ wcswidth.def	wcsxfrm.def	wcwidth.def	wmemchr.def \
+ wmemcmp.def	wmemcpy.def	wmemmove.def	wmemset.def \
+ memmem.def	memrchr.def	rawmemchr.def	strchrnul.def
+ 
+-SUFFIXES = .def
++SUFFIXES = .def .xml
+ 
+ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+ 
+ .c.def:
+ 	$(CHEW) < $< > $*.def 2> $*.ref
+-	touch stmp-def
++	@touch stmp-def
+ 
+ TARGETDOC = ../tmp.texi
+ 
+-doc: $(CHEWOUT_FILES)
++doc-texinfo: $(CHEWOUT_FILES)
+ 	cat $(srcdir)/strings.tex >> $(TARGETDOC)
+ 	cat $(srcdir)/wcstrings.tex >> $(TARGETDOC)
+ 
+-CLEANFILES = $(CHEWOUT_FILES) *.ref
++DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
++DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
++
++.c.xml:
++	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
++	@touch stmp-xml
++
++doc-docbook: $(DOCBOOK_OUT_FILES)
++	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/strings.tex >../strings.xml
++	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/wcstrings.tex >../wcstrings.xml
++
++doc: doc-docbook doc-texinfo
++
++CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
+diff --git a/newlib/libc/time/Makefile.am b/newlib/libc/time/Makefile.am
+index 95f088a..39d47bf 100644
+--- a/newlib/libc/time/Makefile.am
++++ b/newlib/libc/time/Makefile.am
+@@ -60,17 +60,31 @@ CHEWOUT_FILES = \
+ 	tzset.def	\
+ 	wcsftime.def
+ 
+-SUFFIXES = .def
++SUFFIXES = .def .xml
+ 
+ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+ 
+ .c.def:
+ 	$(CHEW) < $< > $*.def 2> $*.ref
+-	touch stmp-def
++	@touch stmp-def
+ 
++CHAPTER = time.tex
+ TARGETDOC = ../tmp.texi
+ 
+-doc: $(CHEWOUT_FILES)
+-	cat $(srcdir)/time.tex >> $(TARGETDOC)
++doc-texinfo: $(CHEWOUT_FILES)
++	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
+ 
+-CLEANFILES = $(CHEWOUT_FILES) *.ref
++DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
++DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
++DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
++
++.c.xml:
++	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
++	@touch stmp-xml
++
++doc-docbook: $(DOCBOOK_OUT_FILES)
++	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
++
++doc: doc-docbook doc-texinfo
++
++CLEANFILES = $(CHEWOUT_FILES) *.ref  $(DOCBOOK_OUT_FILES)
+diff --git a/newlib/libm/Makefile.am b/newlib/libm/Makefile.am
+index bc45816..2a09a33 100644
+--- a/newlib/libm/Makefile.am
++++ b/newlib/libm/Makefile.am
+@@ -58,10 +58,24 @@ math/stmp-def: stmp-targetdep ; @true
+ 
+ complex/stmp-def: stmp-targetdep ; @true
+ 
++docbook: math/stmp-def complex/stmp-def libm.in.xml
++	xsltproc --xinclude --path ${builddir} --nonet ${srcdir}/../refcontainers.xslt ${srcdir}/libm.in.xml >libm.xml
++	-xmllint --xinclude -path ${builddir} --postvalid --noent --nonet --noout libm.xml
++	xmlto --skip-validation --searchpath ${builddir} html-nochunks --stringparam funcsynopsis.style=ansi libm.xml
++	xmlto --skip-validation --searchpath ${builddir} man -m ${srcdir}/../man.xsl libm.xml
++
++doc: docbook
++
++install-data-local:
++	mkdir -p $(DESTDIR)$(htmldir)
++	$(INSTALL_DATA) libm.html $(DESTDIR)$(htmldir)/
++	mkdir -p $(DESTDIR)$(mandir)/man3
++	$(INSTALL_DATA) *.3 $(DESTDIR)$(mandir)/man3/
++
+ .PHONY: force
+ force:
+ 
+-CLEANFILES = tmp.texi targetdep.tex stmp-targetdep
++CLEANFILES = tmp.texi targetdep.tex stmp-targetdep *.3 *.xml
+ 
+ ACLOCAL_AMFLAGS = -I .. -I ../..
+ CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
+diff --git a/newlib/libm/common/Makefile.am b/newlib/libm/common/Makefile.am
+index d5e0ef9..6c868d5 100644
+--- a/newlib/libm/common/Makefile.am
++++ b/newlib/libm/common/Makefile.am
+@@ -69,13 +69,24 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+ 
+ .c.def:
+ 	$(CHEW) < $< > $*.def 2> $*.ref
+-	touch stmp-def
++	@touch stmp-def
+ 
+ TARGETDOC = ../tmp.texi
+ 
+-doc: $(chobj)
++doc-texinfo: $(chobj)
+ 
+-CLEANFILES = $(chobj) *.ref
++DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
++DOCBOOK_OUT_FILES = $(chobj:.def=.xml)
++
++.c.xml:
++	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
++	@touch stmp-xml
++
++doc-docbook: $(DOCBOOK_OUT_FILES)
++
++doc: doc-docbook doc-texinfo
++
++CLEANFILES = $(chobj) *.ref $(DOCBOOK_OUT_FILES)
+ 
+ # A partial dependency list.
+ 
+diff --git a/newlib/libm/complex/Makefile.am b/newlib/libm/complex/Makefile.am
+index 1c4a502..f66e45e 100644
+--- a/newlib/libm/complex/Makefile.am
++++ b/newlib/libm/complex/Makefile.am
+@@ -40,20 +40,34 @@ chobj =	cabs.def cacos.def cacosh.def carg.def \
+         csin.def csinh.def csqrt.def ctan.def ctanh.def
+ 
+ 
+-SUFFIXES = .def
++SUFFIXES = .def .xml
+ 
+ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+ 
+ .c.def:
+ 	$(CHEW) < $< > $*.def 2> $*.ref
+-	touch stmp-def
++	@touch stmp-def
+ 
++CHAPTER = complex.tex
+ TARGETDOC = ../tmp.texi
+ 
+-doc: $(chobj)
+-	cat $(srcdir)/complex.tex >> $(TARGETDOC)
++doc-texinfo: $(chobj)
++	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
+ 
+-CLEANFILES = $(chobj) *.ref
++DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
++DOCBOOK_OUT_FILES = $(chobj:.def=.xml)
++DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
++
++.c.xml:
++	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
++	@touch stmp-xml
++
++doc-docbook: $(DOCBOOK_OUT_FILES)
++	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
++
++doc: doc-docbook doc-texinfo
++
++CLEANFILES = $(chobj) *.ref $(DOCBOOK_OUT_FILES)
+ 
+ # A partial dependency list.
+ 
+diff --git a/newlib/libm/libm.in.xml b/newlib/libm/libm.in.xml
+new file mode 100644
+index 0000000..c0e0506
+--- /dev/null
++++ b/newlib/libm/libm.in.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
++<book id="libm" xmlns:xi="http://www.w3.org/2001/XInclude">
++  <bookinfo>
++    <productname>newlib</productname>
++  </bookinfo>
++
++  <!-- XXX: also should put the rest of the content from libm.texinfo here, but I don't need it for just generating manpages -->
++  <xi:include href="complex.xml"/>
++  <xi:include href="math.xml"/>
++</book>
+diff --git a/newlib/libm/math/Makefile.am b/newlib/libm/math/Makefile.am
+index 2616ada..bfaca77 100644
+--- a/newlib/libm/math/Makefile.am
++++ b/newlib/libm/math/Makefile.am
+@@ -82,14 +82,28 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+ 
+ .c.def:
+ 	$(CHEW) < $< > $*.def 2> $*.ref
+-	touch stmp-def
++	@touch stmp-def
+ 
++CHAPTER = math.tex
+ TARGETDOC = ../tmp.texi
+ 
+-doc: $(chobj)
+-	cat $(srcdir)/math.tex >> $(TARGETDOC)
++doc-texinfo: $(chobj)
++	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
+ 
+-CLEANFILES = $(chobj) *.ref
++DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
++DOCBOOK_OUT_FILES = $(chobj:.def=.xml)
++DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
++
++.c.xml:
++	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
++	@touch stmp-xml
++
++doc-docbook: $(DOCBOOK_OUT_FILES)
++	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
++
++doc: doc-docbook doc-texinfo
++
++CLEANFILES = $(chobj) *.ref  $(DOCBOOK_OUT_FILES)
+ 
+ # A partial dependency list.
+ 
+diff --git a/newlib/libm/mathfp/Makefile.am b/newlib/libm/mathfp/Makefile.am
+index eece678..1f889e0 100644
+--- a/newlib/libm/mathfp/Makefile.am
++++ b/newlib/libm/mathfp/Makefile.am
+@@ -58,34 +58,34 @@ endif # USE_LIBTOOL
+ 
+ include $(srcdir)/../../Makefile.shared
+ 
+-chobj = eacosh.def \
+-	eatanh.def \
+-	ehypot.def \
+-	eremainder.def \
+-	erlgamma.def \
+-	sacos.def \
+-	sasine.def \
+-	sasinh.def \
+-	satan.def \
+-	satan2.def \
+-	satangent.def \
+-	scosh.def \
+-	serf.def \
+-	sexp.def \
+-	sfabs.def \
+-	sfloor.def \
+-	sfmod.def \
+-	sfrexp.def \
+-	sldexp.def \
+-	slog10.def \
+-	slogarithm.def \
+-	spow.def \
+-	ssine.def \
+-	ssineh.def \
+-	ssqrt.def \
+-	stan.def \
+-	stanh.def \
+-	wjn.def
++chobj = e_acosh.def \
++	e_atanh.def \
++	e_hypot.def \
++	e_remainder.def \
++	er_lgamma.def \
++	s_acos.def \
++	s_asine.def \
++	s_asinh.def \
++	s_atan.def \
++	s_atan2.def \
++	s_atangent.def \
++	s_cosh.def \
++	s_erf.def \
++	s_exp.def \
++	s_fabs.def \
++	s_floor.def \
++	s_fmod.def \
++	s_frexp.def \
++	s_ldexp.def \
++	s_log10.def \
++	s_logarithm.def \
++	s_pow.def \
++	s_sine.def \
++	s_sineh.def \
++	s_sqrt.def \
++	s_tan.def \
++	s_tanh.def \
++	w_jn.def
+ 
+ SUFFIXES = .def
+ 
+@@ -93,12 +93,26 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+ 
+ .c.def:
+ 	$(CHEW) < $< > $*.def 2> $*.ref
+-	touch stmp-def
++	@touch stmp-def
+ 
++CHAPTER = mathfp.tex
+ TARGETDOC = ../tmp.texi
+ 
+-doc: $(chobj)
+-	cat $(srcdir)/mathfp.tex >> $(TARGETDOC)
++doc-texinfo: $(chobj)
++	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
++
++DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
++DOCBOOK_OUT_FILES = $(chobj:.def=.xml)
++DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
++
++.c.xml:
++	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
++	@touch stmp-xml
++
++doc-docbook: $(DOCBOOK_OUT_FILES)
++	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
++
++doc: doc-docbook doc-texinfo
+ 
+ CLEANFILES = $(chobj) *.ref
+ 
+diff --git a/newlib/man.xsl b/newlib/man.xsl
+new file mode 100644
+index 0000000..a0e2736
+--- /dev/null
++++ b/newlib/man.xsl
+@@ -0,0 +1,13 @@
++<?xml version='1.0'?>
++<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version='1.0'>
++
++<!-- don't truncate long manual names -->
++<xsl:param name="man.th.extra3.max.length" select="45" />
++
++<!-- don't moan about missing metadata -->
++<xsl:param name="refentry.meta.get.quietly" select="1" />
++
++<!-- generate ansi rather than k&r style function synopses -->
++<xsl:param name="funcsynopsis.style" select="ansi" />
++
++</xsl:stylesheet>
+diff --git a/newlib/refcontainers.xslt b/newlib/refcontainers.xslt
+new file mode 100644
+index 0000000..85396f6
+--- /dev/null
++++ b/newlib/refcontainers.xslt
+@@ -0,0 +1,14 @@
++<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
++ <!-- trivial XSLT which removes the refentrycontainer layer -->
++ <xsl:output method="xml" encoding="UTF-8" indent="yes" doctype-public="-//OASIS//DTD DocBook V4.5//EN" doctype-system="http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd" />
++ <xsl:strip-space elements="*"/>
++
++ <!-- Whenever you match any node but refentrycontainer or any attribute -->
++ <xsl:template match="node()[not(self::refentrycontainer)]|@*">
++ <!-- Copy the current node -->
++  <xsl:copy>
++    <!-- Including any attributes it has and any child nodes -->
++   <xsl:apply-templates select="node()|@*"/>
++  </xsl:copy>
++ </xsl:template>
++</xsl:stylesheet>
+-- 
+2.4.5
+

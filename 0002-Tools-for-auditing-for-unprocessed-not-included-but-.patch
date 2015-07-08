@@ -1,0 +1,41 @@
+From 306b0a4b167b74be4c0dd6a1cce9acf8c832be02 Mon Sep 17 00:00:00 2001
+From: Jon TURNEY <jon.turney@dronecode.org.uk>
+Date: Tue, 23 Jun 2015 13:37:37 +0100
+Subject: [PATCH 2/6] Tools for auditing for unprocessed/not included but
+ marked-up source file
+
+---
+ newlib/list-chewed-but-not-included-files | 5 +++++
+ newlib/list-marked-up-but-not-chewed      | 8 ++++++++
+ 2 files changed, 13 insertions(+)
+ create mode 100755 newlib/list-chewed-but-not-included-files
+ create mode 100755 newlib/list-marked-up-but-not-chewed
+
+diff --git a/newlib/list-chewed-but-not-included-files b/newlib/list-chewed-but-not-included-files
+new file mode 100755
+index 0000000..0bb0926
+--- /dev/null
++++ b/newlib/list-chewed-but-not-included-files
+@@ -0,0 +1,5 @@
++#!/bin/sh -x
++builddir=/wip/cygwin/build/x86_64-unknown-cygwin/newlib/libm
++find -name \*.tex -exec fgrep @include {} \; | awk '{print $2}' | sort >included.file.list
++find ${builddir} -name \*.def | sed s#${builddir}/## | sort >chewed.file.list
++diff -U0 included.file.list chewed.file.list
+diff --git a/newlib/list-marked-up-but-not-chewed b/newlib/list-marked-up-but-not-chewed
+new file mode 100755
+index 0000000..eecaa43
+--- /dev/null
++++ b/newlib/list-marked-up-but-not-chewed
+@@ -0,0 +1,8 @@
++#!/bin/sh
++builddir=/wip/cygwin/build/x86_64-unknown-cygwin/newlib
++find -name *.c -exec grep -q "^FUNCTION" {} \; -print | \
++    while read c ; do
++        if [ ! -e ${builddir}/${c%.c}.def ] ; then
++            echo $c
++        fi
++    done
+-- 
+2.4.5
+
