@@ -1,11 +1,10 @@
 NAME="cygwin-doc"
-VERSION="2.0.4"
+VERSION="2.1.0"
 RELEASE="1"
 HOMEPAGE="https://cygwin.com/"
 
 GIT_URI="git://cygwin.com/git/newlib-cygwin.git"
-#GIT_TAG="cygwin-${PV//\./_}-release"
-GIT_REV="b90a91a61800706ff83c47431658515dda90399c"
+GIT_TAG="cygwin-${PV//\./_}-release"
 inherit git
 
 TOOLCHAIN_TARGET="native"
@@ -21,13 +20,12 @@ cygwin_doc_SUMMARY="Cygwin-specific documentation, including man pages"
 cygwin_doc_DESCRIPTION="Documentation for Cygwin and newlib, including man
 pages and texinfo files."
 cygwin_doc_CONTENTS="usr/share/man/ usr/share/info  usr/share/doc/newlib
- --exclude=usr/share/info/standards.info.gz  --exclude=usr/share/info/configure.info.gz
- --exclude=usr/share/man/man3/regex.3.gz --exclude=usr/share/man/man7/regex.7.gz"
+ --exclude=usr/share/info/standards.info.gz  --exclude=usr/share/info/configure.info.gz"
 
 PKG_IGNORE="etc/ usr/bin usr/sbin usr/share/cygwin
 usr/share/doc/Cygwin usr/share/doc/cygwin-doc
 usr/share/info/standards.info.gz usr/share/info/configure.info.gz
-usr/share/man/man3/regex.3.gz usr/share/man/man7/regex.7.gz usr/x86_64-pc-cygwin"
+usr/x86_64-pc-cygwin"
 DIFF_EXCLUDES="libc.info libm.info parser.out parsetab.py"
 RESTRICT="debuginfo postinst-doc"
 
