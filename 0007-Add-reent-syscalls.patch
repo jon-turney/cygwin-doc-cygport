@@ -1,0 +1,72 @@
+From b2651ec0bf099d66c6dacd183be30191181b4af6 Mon Sep 17 00:00:00 2001
+From: Jon Turney <jon.turney@dronecode.org.uk>
+Date: Sat, 18 Jul 2015 18:53:07 +0100
+Subject: [PATCH 7/8] Add reent syscalls
+
+Also move syscalls down and copy it to builddir to deal with xi:include's
+relative include behaviour
+
+Signed-off-by: Jon Turney <jon.turney@dronecode.org.uk>
+---
+ newlib/libc/syscalls/Makefile.am        |  8 ++++++--
+ newlib/libc/{ => syscalls}/syscalls.xml | 17 +++++++++++++++--
+ 2 files changed, 21 insertions(+), 4 deletions(-)
+ rename newlib/libc/{ => syscalls}/syscalls.xml (94%)
+
+diff --git a/newlib/libc/syscalls/Makefile.am b/newlib/libc/syscalls/Makefile.am
+index 7af4064..fb19cbd 100644
+--- a/newlib/libc/syscalls/Makefile.am
++++ b/newlib/libc/syscalls/Makefile.am
+@@ -64,7 +64,11 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+ 
+ TARGETDOC = ../tmp.texi
+ 
+-# No doc for syscalls.
+-doc:
++DOCBOOK_CHAPTER = syscalls.xml
++
++doc-docbook:
++	cp ${srcdir}/$(DOCBOOK_CHAPTER) ../$(DOCBOOK_CHAPTER)
++
++doc: doc-docbook
+ 
+ CLEANFILES = $(CHEWOUT_FILES) *.ref
+diff --git a/newlib/libc/syscalls.xml b/newlib/libc/syscalls/syscalls.xml
+similarity index 94%
+rename from newlib/libc/syscalls.xml
+rename to newlib/libc/syscalls/syscalls.xml
+index fae1451..320901c 100644
+--- a/newlib/libc/syscalls.xml
++++ b/newlib/libc/syscalls/syscalls.xml
+@@ -1,6 +1,6 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+-<chapter id="syscalls">
++<chapter id="syscalls" xmlns:xi="http://www.w3.org/2001/XInclude">
+   <title>System Calls</title>
+   <para>
+     <indexterm><primary>linking the C library</primary></indexterm>
+@@ -387,6 +387,19 @@ int write(int file, char *ptr, int len) {
+       reserved global data block (@pxref{Reentrancy,,Reentrancy}).
+     </para>
+ 
+-    <!-- include stuff from reent/ ??? -->
++    <xi:include href="./reent/closer.xml"/>
++    <xi:include href="./reent/execr.xml"/>
++    <xi:include href="./reent/fstatr.xml"/>
++    <xi:include href="./reent/linkr.xml"/>
++    <xi:include href="./reent/lseekr.xml"/>
++    <xi:include href="./reent/openr.xml"/>
++    <xi:include href="./reent/readr.xml"/>
++    <xi:include href="./reent/sbrkr.xml"/>
++    <xi:include href="./reent/signalr.xml"/>
++    <xi:include href="./reent/statr.xml"/>
++    <xi:include href="./reent/timesr.xml"/>
++    <xi:include href="./reent/unlinkr.xml"/>
++    <xi:include href="./reent/writer.xml"/>
++
+   </section>
+ </chapter>
+-- 
+2.5.3
+

@@ -1,5 +1,5 @@
 NAME="cygwin-doc"
-VERSION="2.1.0"
+VERSION="2.2.1"
 RELEASE="1"
 HOMEPAGE="https://cygwin.com/"
 
@@ -31,12 +31,17 @@ RESTRICT="debuginfo postinst-doc"
 
 PATCH_URI="
 0001-Make-newlib-manpages-via-DocBook-XML.patch
-0002-Tools-for-auditing-for-unprocessed-not-included-but-.patch
-0003-Regenerate.patch
-0004-Hand-converted-refentries-for-stdarg.h-and-varargs.h.patch
-0005-Convert-makedoc-COURIER-lines-to-literallayout-class.patch
-0006-Generate-PDFs-as-well.patch
+0002-Hand-convert-refentries-for-stdarg.h-and-varargs.h.patch
+0003-Tools-for-auditing-for-unprocessed-not-included-but-.patch
+0004-Hand-convert-libc-introduction-to-DocBook-XML.patch
+0005-Hand-convert-syscalls-chapter.patch
+0006-Include-generated-reent-documentation.patch
+0007-Add-reent-syscalls.patch
+0008-Add-hand-converted-iconv-chapter-and-generated-iconv.patch
+0009-Regenerate-Makefile.in-files.patch
 "
+
+SRC_URI+="handwritten.patch"
 
 src_compile() {
   # make sure scripts added by patches are executable
@@ -72,7 +77,7 @@ src_install() {
   # workaround for https://sourceforge.net/p/docbook/bugs/1362/
   # fixup the manpages which contain nested tables with some handwritten groff
   cd ${D}
-  patch -p1 <${C}/handwritten.patch || error "failed to apply manpage fixup patch"
+  patch -p1 -v never <${S}/handwritten.patch || error "failed to apply manpage fixup patch"
 
   docinto /newlib
   dodoc ${S}/COPYING.NEWLIB ${S}/newlib/HOWTO ${S}/newlib/NEWS ${S}/newlib/README

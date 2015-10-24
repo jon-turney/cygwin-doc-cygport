@@ -1,15 +1,18 @@
-From 306b0a4b167b74be4c0dd6a1cce9acf8c832be02 Mon Sep 17 00:00:00 2001
-From: Jon TURNEY <jon.turney@dronecode.org.uk>
+From 999aebd02253920ff4a0382b7ac3a25b5f9e20f0 Mon Sep 17 00:00:00 2001
+From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Tue, 23 Jun 2015 13:37:37 +0100
-Subject: [PATCH 2/6] Tools for auditing for unprocessed/not included but
+Subject: [PATCH 3/8] Tools for auditing for unprocessed/not included but
  marked-up source file
 
+Signed-off-by: Jon Turney <jon.turney@dronecode.org.uk>
 ---
  newlib/list-chewed-but-not-included-files | 5 +++++
  newlib/list-marked-up-but-not-chewed      | 8 ++++++++
- 2 files changed, 13 insertions(+)
+ newlib/list-undocumented-symbols          | 7 +++++++
+ 3 files changed, 20 insertions(+)
  create mode 100755 newlib/list-chewed-but-not-included-files
  create mode 100755 newlib/list-marked-up-but-not-chewed
+ create mode 100755 newlib/list-undocumented-symbols
 
 diff --git a/newlib/list-chewed-but-not-included-files b/newlib/list-chewed-but-not-included-files
 new file mode 100755
@@ -36,6 +39,19 @@ index 0000000..eecaa43
 +            echo $c
 +        fi
 +    done
+diff --git a/newlib/list-undocumented-symbols b/newlib/list-undocumented-symbols
+new file mode 100755
+index 0000000..ed1f688
+--- /dev/null
++++ b/newlib/list-undocumented-symbols
+@@ -0,0 +1,7 @@
++#!/bin/sh
++nm --defined-only -g libc.a | grep " T " |  cut -d' ' -f3 | egrep -v "(__|_r|xdr)" | sort | \
++    while read c ; do
++	if [ ! -e libc/${c}.3 ] ; then
++	    echo $c
++	fi
++    done
 -- 
-2.4.5
+2.5.3
 

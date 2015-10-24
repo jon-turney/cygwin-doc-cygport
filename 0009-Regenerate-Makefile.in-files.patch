@@ -1,41 +1,45 @@
-From f3753f72fcba116e488aa2b25c761d469c751973 Mon Sep 17 00:00:00 2001
-From: Jon TURNEY <jon.turney@dronecode.org.uk>
-Date: Tue, 23 Jun 2015 15:25:17 +0100
-Subject: [PATCH 3/6] Regenerate
+From 776e32b2cd84745821f2795757f86582de06ca41 Mon Sep 17 00:00:00 2001
+From: Jon Turney <jon.turney@dronecode.org.uk>
+Date: Sat, 24 Oct 2015 20:08:53 +0100
+Subject: [PATCH 9/9] Regenerate Makefile.in files
 
+Signed-off-by: Jon Turney <jon.turney@dronecode.org.uk>
 ---
- newlib/libc/Makefile.in         | 28 +++++++++----
- newlib/libc/ctype/Makefile.in   | 23 +++++++---
- newlib/libc/locale/Makefile.in  | 23 +++++++---
- newlib/libc/misc/Makefile.in    | 23 +++++++---
- newlib/libc/posix/Makefile.in   | 23 +++++++---
- newlib/libc/search/Makefile.in  | 20 ++++++---
- newlib/libc/signal/Makefile.in  | 25 ++++++++---
- newlib/libc/stdio/Makefile.in   | 25 ++++++++---
- newlib/libc/stdio64/Makefile.in | 25 ++++++++---
- newlib/libc/stdlib/Makefile.in  | 25 ++++++++---
- newlib/libc/string/Makefile.in  | 22 +++++++---
- newlib/libc/time/Makefile.in    | 25 ++++++++---
- newlib/libm/Makefile.in         | 28 +++++++++----
- newlib/libm/common/Makefile.in  | 18 ++++++--
- newlib/libm/complex/Makefile.in | 93 ++++++++++++++++++++++++++++-------------
- newlib/libm/math/Makefile.in    | 40 +++++++++++-------
- 16 files changed, 345 insertions(+), 121 deletions(-)
+ newlib/libc/Makefile.in          | 32 +++++++++++---
+ newlib/libc/ctype/Makefile.in    | 25 ++++++++---
+ newlib/libc/locale/Makefile.in   | 23 +++++++---
+ newlib/libc/misc/Makefile.in     | 23 +++++++---
+ newlib/libc/posix/Makefile.in    | 23 +++++++---
+ newlib/libc/reent/Makefile.in    | 25 ++++++++---
+ newlib/libc/search/Makefile.in   | 20 ++++++---
+ newlib/libc/signal/Makefile.in   | 25 ++++++++---
+ newlib/libc/stdio/Makefile.in    | 25 ++++++++---
+ newlib/libc/stdio64/Makefile.in  | 25 ++++++++---
+ newlib/libc/stdlib/Makefile.in   | 25 ++++++++---
+ newlib/libc/string/Makefile.in   | 22 +++++++---
+ newlib/libc/syscalls/Makefile.in |  7 ++-
+ newlib/libc/time/Makefile.in     | 25 ++++++++---
+ newlib/libm/Makefile.in          | 31 +++++++++++---
+ newlib/libm/common/Makefile.in   | 18 ++++++--
+ newlib/libm/complex/Makefile.in  | 93 ++++++++++++++++++++++++++++------------
+ newlib/libm/math/Makefile.in     | 40 ++++++++++-------
+ 18 files changed, 377 insertions(+), 130 deletions(-)
 
 diff --git a/newlib/libc/Makefile.in b/newlib/libc/Makefile.in
-index cbddc5f..4da4453 100644
+index cbddc5f..3b2fbad 100644
 --- a/newlib/libc/Makefile.in
 +++ b/newlib/libc/Makefile.in
-@@ -435,7 +435,7 @@ CLEANFILES = $(CRT0) \
+@@ -435,7 +435,8 @@ CLEANFILES = $(CRT0) \
  	sigset.texi stmp-sigset extra.texi stmp-extra \
  	stdio64.texi stmp-stdio64 targetdep.tex stmp-targetdep \
  	tmp-sigset.texi tmp-iconvset.texi tmp-extra.texi \
 -	tmp-stdio64.texi tmp-posix.texi tmp-targetdep.texi
-+	tmp-stdio64.texi tmp-posix.texi tmp-targetdep.texi *.3 *.xml
++	tmp-stdio64.texi tmp-posix.texi tmp-targetdep.texi \
++	*.xml libc.hml libc.pdf *.3
  
  ACLOCAL_AMFLAGS = -I .. -I ../..
  CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
-@@ -858,7 +858,7 @@ info: info-recursive
+@@ -858,7 +859,7 @@ info: info-recursive
  
  info-am: $(INFO_DEPS)
  
@@ -44,7 +48,7 @@ index cbddc5f..4da4453 100644
  
  install-dvi: install-dvi-recursive
  
-@@ -1010,11 +1010,11 @@ uninstall-am: uninstall-dvi-am uninstall-html-am uninstall-info-am \
+@@ -1010,11 +1011,11 @@ uninstall-am: uninstall-dvi-am uninstall-html-am uninstall-info-am \
  	distclean distclean-compile distclean-generic \
  	distclean-libtool distclean-tags dvi dvi-am html html-am info \
  	info-am install install-am install-data install-data-am \
@@ -61,21 +65,24 @@ index cbddc5f..4da4453 100644
  	maintainer-clean-aminfo maintainer-clean-generic mostlyclean \
  	mostlyclean-aminfo mostlyclean-compile mostlyclean-generic \
  	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-recursive \
-@@ -1118,6 +1118,20 @@ targetdep.tex: stmp-targetdep ; @true
+@@ -1118,6 +1119,23 @@ targetdep.tex: stmp-targetdep ; @true
  
  $(SUBDEFS): stmp-targetdep ; @true
  
 +docbook: $(SUBDEFS) libc.in.xml
 +	xsltproc --xinclude --path ${builddir} --nonet ${srcdir}/../refcontainers.xslt ${srcdir}/libc.in.xml >libc.xml
-+	-xmllint --xinclude --path ${builddir} --postvalid --noent --nonet --noout libc.xml
-+	xmlto --skip-validation --searchpath ${builddir} html-nochunks --stringparam funcsynopsis.style=ansi libc.xml
-+	xmlto --skip-validation --searchpath ${builddir} man -m ${srcdir}/../man.xsl libc.xml
++	-xmllint --postvalid --noent --nonet --noout libc.xml
++	xmlto --skip-validation html-nochunks --stringparam funcsynopsis.style=ansi libc.xml
++	xmlto --skip-validation pdf --with-dblatex --stringparam funcsynopsis.style=ansi libc.xml
++	xmlto --skip-validation man -m ${srcdir}/../man.xsl libc.xml
 +
 +doc: docbook
 +
 +install-data-local:
 +	mkdir -p $(DESTDIR)$(htmldir)
 +	$(INSTALL_DATA) libc.html $(DESTDIR)$(htmldir)/
++	mkdir -p $(DESTDIR)$(docdir)
++	$(INSTALL_DATA) libc.pdf $(DESTDIR)$(docdir)/
 +	mkdir -p $(DESTDIR)$(mandir)/man3
 +	$(INSTALL_DATA) *.3 $(DESTDIR)$(mandir)/man3
 +
@@ -83,7 +90,7 @@ index cbddc5f..4da4453 100644
  force:
  
 diff --git a/newlib/libc/ctype/Makefile.in b/newlib/libc/ctype/Makefile.in
-index 3272b99..e48cbd8 100644
+index 3272b99..50eaefc 100644
 --- a/newlib/libc/ctype/Makefile.in
 +++ b/newlib/libc/ctype/Makefile.in
 @@ -374,14 +374,18 @@ CHEWOUT_FILES = \
@@ -108,7 +115,7 @@ index 3272b99..e48cbd8 100644
  $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(srcdir)/../../Makefile.shared $(am__configure_deps)
  	@for dep in $?; do \
  	  case '$(am__configure_deps)' in \
-@@ -843,11 +847,20 @@ objectlist.awk.in: $(noinst_LTLIBRARIES)
+@@ -843,10 +847,19 @@ objectlist.awk.in: $(noinst_LTLIBRARIES)
  
  .c.def:
  	$(CHEW) < $< > $*.def 2> $*.ref
@@ -116,9 +123,10 @@ index 3272b99..e48cbd8 100644
 +	@touch stmp-def
  
 -doc: $(CHEWOUT_FILES)
+-	cat $(srcdir)/ctype.tex >> $(TARGETDOC)
 +doc-texinfo: $(CHEWOUT_FILES)
- 	cat $(srcdir)/ctype.tex >> $(TARGETDOC)
- 
++	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
++
 +.c.xml:
 +	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
 +	@touch stmp-xml
@@ -127,12 +135,11 @@ index 3272b99..e48cbd8 100644
 +	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/$(CHAPTER) >../$(DOCBOOK_CHAPTER)
 +
 +doc: doc-docbook doc-texinfo
-+
+ 
  $(lpfx)ctype_.$(oext): ctype_.c ctype_iso.h ctype_cp.h
  
- # Tell versions [3.59,3.63) of GNU make to not export all variables.
 diff --git a/newlib/libc/locale/Makefile.in b/newlib/libc/locale/Makefile.in
-index b3fa348..5e2cb9a 100644
+index b3fa348..0958bce 100644
 --- a/newlib/libc/locale/Makefile.in
 +++ b/newlib/libc/locale/Makefile.in
 @@ -287,12 +287,16 @@ liblocale_la_LDFLAGS = -Xcompiler -nostdlib
@@ -164,7 +171,7 @@ index b3fa348..5e2cb9a 100644
 -doc: $(CHEWOUT_FILES)
 -	cat $(srcdir)/locale.tex >> $(TARGETDOC)
 +doc-texinfo: $(CHEWOUT_FILES)
-+	cat $(srcdir)/${CHAPTER} >> $(TARGETDOC)
++	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
 +
 +.c.xml:
 +	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
@@ -270,6 +277,55 @@ index 2982dcd..ce1cc88 100644
  
  # Tell versions [3.59,3.63) of GNU make to not export all variables.
  # Otherwise a system limit (for SysV at least) may be exceeded.
+diff --git a/newlib/libc/reent/Makefile.in b/newlib/libc/reent/Makefile.in
+index 4be5f86..1bade02 100644
+--- a/newlib/libc/reent/Makefile.in
++++ b/newlib/libc/reent/Makefile.in
+@@ -355,14 +355,18 @@ CHEWOUT_FILES = \
+ 	$(STDIO64_DEFS) \
+ 	writer.def
+ 
+-SUFFIXES = .def .h
++SUFFIXES = .def .xml .h
+ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
++CHAPTER = reent.tex
+ TARGETDOC = ../tmp.texi
+-CLEANFILES = $(CHEWOUT_FILES) *.ref
++DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
++DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
++DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
++CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
+ all: all-am
+ 
+ .SUFFIXES:
+-.SUFFIXES: .def .h .c .lo .o .obj
++.SUFFIXES: .def .xml .h .c .lo .o .obj
+ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(srcdir)/../../Makefile.shared $(am__configure_deps)
+ 	@for dep in $?; do \
+ 	  case '$(am__configure_deps)' in \
+@@ -770,10 +774,19 @@ objectlist.awk.in: $(noinst_LTLIBRARIES)
+ 
+ .c.def:
+ 	$(CHEW) < $< > $*.def 2> $*.ref
+-	touch stmp-def
++	@touch stmp-def
+ 
+-doc: $(CHEWOUT_FILES)
+-	cat $(srcdir)/reent.tex >> $(TARGETDOC)
++doc-texinfo: $(CHEWOUT_FILES)
++	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
++
++.c.xml:
++	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
++	@touch stmp-xml
++
++doc-docbook: $(DOCBOOK_OUT_FILES)
++	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
++
++doc: doc-docbook doc-texinfo
+ 
+ $(lpfx)impure.$(oext): $(srcdir)/impure.c $(srcdir)/../include/sys/reent.h
+ 
 diff --git a/newlib/libc/search/Makefile.in b/newlib/libc/search/Makefile.in
 index 755ec8a..d965831 100644
 --- a/newlib/libc/search/Makefile.in
@@ -467,10 +523,10 @@ index d445f53..93e66ca 100644
  # Tell versions [3.59,3.63) of GNU make to not export all variables.
  # Otherwise a system limit (for SysV at least) may be exceeded.
 diff --git a/newlib/libc/stdlib/Makefile.in b/newlib/libc/stdlib/Makefile.in
-index 34da1cb..b12dc17 100644
+index 5f21688..5f605c9 100644
 --- a/newlib/libc/stdlib/Makefile.in
 +++ b/newlib/libc/stdlib/Makefile.in
-@@ -526,14 +526,18 @@ CHEWOUT_FILES = \
+@@ -528,14 +528,18 @@ CHEWOUT_FILES = \
  	wcstombs.def	\
  	wctomb.def	
  
@@ -492,7 +548,7 @@ index 34da1cb..b12dc17 100644
  $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(srcdir)/../../Makefile.shared $(am__configure_deps)
  	@for dep in $?; do \
  	  case '$(am__configure_deps)' in \
-@@ -1463,10 +1467,19 @@ $(lpfx)$(MALLOPTR).$(oext): $(MALLOCR).c
+@@ -1477,10 +1481,19 @@ $(lpfx)$(MALLOPTR).$(oext): $(MALLOCR).c
  
  .c.def:
  	$(CHEW) < $< > $*.def 2> $*.ref
@@ -564,6 +620,31 @@ index 5bf406e..8e7847c 100644
  # Tell versions [3.59,3.63) of GNU make to not export all variables.
  # Otherwise a system limit (for SysV at least) may be exceeded.
  .NOEXPORT:
+diff --git a/newlib/libc/syscalls/Makefile.in b/newlib/libc/syscalls/Makefile.in
+index 1f7b81e..f496fe3 100644
+--- a/newlib/libc/syscalls/Makefile.in
++++ b/newlib/libc/syscalls/Makefile.in
+@@ -305,6 +305,7 @@ CHEWOUT_FILES =
+ SUFFIXES = .def
+ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+ TARGETDOC = ../tmp.texi
++DOCBOOK_CHAPTER = syscalls.xml
+ CLEANFILES = $(CHEWOUT_FILES) *.ref
+ all: all-am
+ 
+@@ -677,8 +678,10 @@ objectlist.awk.in: $(noinst_LTLIBRARIES)
+ 	$(CHEW) < $< > $*.def 2> $*.ref
+ 	touch stmp-def
+ 
+-# No doc for syscalls.
+-doc:
++doc-docbook:
++	cp ${srcdir}/$(DOCBOOK_CHAPTER) ../$(DOCBOOK_CHAPTER)
++
++doc: doc-docbook
+ 
+ # Tell versions [3.59,3.63) of GNU make to not export all variables.
+ # Otherwise a system limit (for SysV at least) may be exceeded.
 diff --git a/newlib/libc/time/Makefile.in b/newlib/libc/time/Makefile.in
 index 48ba064..77c194a 100644
 --- a/newlib/libc/time/Makefile.in
@@ -614,7 +695,7 @@ index 48ba064..77c194a 100644
  # Tell versions [3.59,3.63) of GNU make to not export all variables.
  # Otherwise a system limit (for SysV at least) may be exceeded.
 diff --git a/newlib/libm/Makefile.in b/newlib/libm/Makefile.in
-index 86c4a8e..10687d3 100644
+index 86c4a8e..4370a18 100644
 --- a/newlib/libm/Makefile.in
 +++ b/newlib/libm/Makefile.in
 @@ -309,7 +309,7 @@ libm_la_LDFLAGS = -Xcompiler -nostdlib
@@ -622,7 +703,7 @@ index 86c4a8e..10687d3 100644
  info_TEXINFOS = libm.texinfo
  libm_TEXINFOS = targetdep.tex
 -CLEANFILES = tmp.texi targetdep.tex stmp-targetdep
-+CLEANFILES = tmp.texi targetdep.tex stmp-targetdep *.3 *.xml
++CLEANFILES = tmp.texi targetdep.tex stmp-targetdep *.xml libm.hml libm.pdf *.3
  ACLOCAL_AMFLAGS = -I .. -I ../..
  CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
  all: all-recursive
@@ -652,7 +733,7 @@ index 86c4a8e..10687d3 100644
  	maintainer-clean-aminfo maintainer-clean-generic mostlyclean \
  	mostlyclean-aminfo mostlyclean-compile mostlyclean-generic \
  	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-recursive \
-@@ -927,6 +927,20 @@ math/stmp-def: stmp-targetdep ; @true
+@@ -927,6 +927,23 @@ math/stmp-def: stmp-targetdep ; @true
  
  complex/stmp-def: stmp-targetdep ; @true
  
@@ -660,6 +741,7 @@ index 86c4a8e..10687d3 100644
 +	xsltproc --xinclude --path ${builddir} --nonet ${srcdir}/../refcontainers.xslt ${srcdir}/libm.in.xml >libm.xml
 +	-xmllint --xinclude -path ${builddir} --postvalid --noent --nonet --noout libm.xml
 +	xmlto --skip-validation --searchpath ${builddir} html-nochunks --stringparam funcsynopsis.style=ansi libm.xml
++	xmlto --skip-validation --searchpath ${builddir} pdf --with-dblatex --stringparam funcsynopsis.style=ansi libm.xml
 +	xmlto --skip-validation --searchpath ${builddir} man -m ${srcdir}/../man.xsl libm.xml
 +
 +doc: docbook
@@ -667,6 +749,8 @@ index 86c4a8e..10687d3 100644
 +install-data-local:
 +	mkdir -p $(DESTDIR)$(htmldir)
 +	$(INSTALL_DATA) libm.html $(DESTDIR)$(htmldir)/
++	mkdir -p $(DESTDIR)$(docdir)
++	$(INSTALL_DATA) libm.pdf $(DESTDIR)$(docdir)/
 +	mkdir -p $(DESTDIR)$(mandir)/man3
 +	$(INSTALL_DATA) *.3 $(DESTDIR)$(mandir)/man3/
 +
@@ -714,7 +798,7 @@ index ae5949a..c7434ef 100644
  # A partial dependency list.
  
 diff --git a/newlib/libm/complex/Makefile.in b/newlib/libm/complex/Makefile.in
-index cf731e7..4efea08 100644
+index cf731e7..c7cd29d 100644
 --- a/newlib/libm/complex/Makefile.in
 +++ b/newlib/libm/complex/Makefile.in
 @@ -1,9 +1,9 @@
@@ -860,7 +944,7 @@ index cf731e7..4efea08 100644
  clean-noinstLIBRARIES:
  	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
 -lib.a: $(lib_a_OBJECTS) $(lib_a_DEPENDENCIES) 
-+lib.a: $(lib_a_OBJECTS) $(lib_a_DEPENDENCIES) $(EXTRA_lib_a_DEPENDENCIES)
++lib.a: $(lib_a_OBJECTS) $(lib_a_DEPENDENCIES) $(EXTRA_lib_a_DEPENDENCIES) 
  	-rm -f lib.a
  	$(lib_a_AR) lib.a $(lib_a_OBJECTS) $(lib_a_LIBADD)
  	$(RANLIB) lib.a
@@ -869,7 +953,7 @@ index cf731e7..4efea08 100644
  	  rm -f "$${dir}/so_locations"; \
  	done
 -libcomplex.la: $(libcomplex_la_OBJECTS) $(libcomplex_la_DEPENDENCIES) 
-+libcomplex.la: $(libcomplex_la_OBJECTS) $(libcomplex_la_DEPENDENCIES) $(EXTRA_libcomplex_la_DEPENDENCIES)
++libcomplex.la: $(libcomplex_la_OBJECTS) $(libcomplex_la_DEPENDENCIES) $(EXTRA_libcomplex_la_DEPENDENCIES) 
  	$(libcomplex_la_LINK) $(am_libcomplex_la_rpath) $(libcomplex_la_OBJECTS) $(libcomplex_la_LIBADD) $(LIBS)
  
  mostlyclean-compile:
@@ -927,7 +1011,7 @@ index cf731e7..4efea08 100644
  # A partial dependency list.
  
 diff --git a/newlib/libm/math/Makefile.in b/newlib/libm/math/Makefile.in
-index 233c7c2..028b578 100644
+index 233c7c2..1ea58ba 100644
 --- a/newlib/libm/math/Makefile.in
 +++ b/newlib/libm/math/Makefile.in
 @@ -138,14 +138,13 @@ am__objects_2 = lib_a-kf_rem_pio2.$(OBJEXT) lib_a-kf_cos.$(OBJEXT) \
@@ -989,7 +1073,7 @@ index 233c7c2..028b578 100644
 +DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
 +DOCBOOK_OUT_FILES = $(chobj:.def=.xml)
 +DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
-+CLEANFILES = $(chobj) *.ref  $(DOCBOOK_OUT_FILES)
++CLEANFILES = $(chobj) *.ref $(DOCBOOK_OUT_FILES)
  all: all-am
  
  .SUFFIXES:
@@ -1022,5 +1106,5 @@ index 233c7c2..028b578 100644
  # A partial dependency list.
  
 -- 
-2.4.5
+2.5.3
 

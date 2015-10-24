@@ -1,7 +1,7 @@
-From 82a02e878ce9c394e096836187300143fcf5b0aa Mon Sep 17 00:00:00 2001
-From: Jon TURNEY <jon.turney@dronecode.org.uk>
-Date: Tue, 23 Jun 2015 13:37:09 +0100
-Subject: [PATCH 1/6] Make newlib manpages via DocBook XML
+From 7dde0838512ef7ecb8e93e57dfd8881a15d33762 Mon Sep 17 00:00:00 2001
+From: Jon Turney <jon.turney@dronecode.org.uk>
+Date: Sat, 18 Jul 2015 19:12:45 +0100
+Subject: [PATCH 1/8] Make newlib manpages via DocBook XML
 
 Add makedocbook, a tool to process makedoc markup and output DocBook XML
 refentries.
@@ -17,21 +17,29 @@ lib[cm].xml is currently used.)
 All the source files which are processed with makedoc, process with makedocbook
 as well
 
-Generate and install man pages and HTML (The HTML is just for ease of reviewing
-all manpages)
+Generate and install man pages, HTML and PDF
+
+v2:
+makedoc COURIER lines are used for preformatted content over multiple lines, so
+must be shown verbatim. Convert to <literallayout class="monospace"> not <code>
+also generate PDF
+add an index, insert index entries for functions and texinfo @[cf]index
+Remove unneeded searchpaths since we xinclude everything during xsltproc processing
+Structure using chapters
+Mark optional includes with an empty fallback
 
 Signed-off-by: Jon TURNEY <jon.turney@dronecode.org.uk>
+Signed-off-by: Jon Turney <jon.turney@dronecode.org.uk>
 ---
  newlib/doc/.gitignore              |   3 +
- newlib/doc/chapter-texi2docbook.py | 137 +++++++
- newlib/doc/makedocbook.py          | 783 +++++++++++++++++++++++++++++++++++++
- newlib/libc/Makefile.am            |  16 +-
+ newlib/doc/chapter-texi2docbook.py | 142 +++++++
+ newlib/doc/makedocbook.py          | 792 +++++++++++++++++++++++++++++++++++++
+ newlib/libc/Makefile.am            |  20 +-
  newlib/libc/ctype/Makefile.am      |  24 +-
- newlib/libc/libc.in.xml            |  25 ++
+ newlib/libc/libc.in.xml            |  43 ++
  newlib/libc/locale/Makefile.am     |  21 +-
  newlib/libc/misc/Makefile.am       |  22 +-
  newlib/libc/posix/Makefile.am      |  22 +-
- newlib/libc/reent/reent.tex        |   4 +-
  newlib/libc/search/Makefile.am     |  19 +-
  newlib/libc/signal/Makefile.am     |  24 +-
  newlib/libc/stdio/Makefile.am      |  24 +-
@@ -39,15 +47,15 @@ Signed-off-by: Jon TURNEY <jon.turney@dronecode.org.uk>
  newlib/libc/stdlib/Makefile.am     |  24 +-
  newlib/libc/string/Makefile.am     |  21 +-
  newlib/libc/time/Makefile.am       |  24 +-
- newlib/libm/Makefile.am            |  16 +-
+ newlib/libm/Makefile.am            |  19 +-
  newlib/libm/common/Makefile.am     |  17 +-
  newlib/libm/complex/Makefile.am    |  24 +-
  newlib/libm/libm.in.xml            |  11 +
  newlib/libm/math/Makefile.am       |  22 +-
- newlib/libm/mathfp/Makefile.am     |  76 ++--
+ newlib/libm/mathfp/Makefile.am     |  22 +-
  newlib/man.xsl                     |  13 +
  newlib/refcontainers.xslt          |  14 +
- 25 files changed, 1312 insertions(+), 97 deletions(-)
+ 24 files changed, 1322 insertions(+), 68 deletions(-)
  create mode 100644 newlib/doc/.gitignore
  create mode 100755 newlib/doc/chapter-texi2docbook.py
  create mode 100755 newlib/doc/makedocbook.py
@@ -67,10 +75,10 @@ index 0000000..b6fcb73
 +parsetab.py
 diff --git a/newlib/doc/chapter-texi2docbook.py b/newlib/doc/chapter-texi2docbook.py
 new file mode 100755
-index 0000000..34fed6e
+index 0000000..1cd1e2e
 --- /dev/null
 +++ b/newlib/doc/chapter-texi2docbook.py
-@@ -0,0 +1,137 @@
+@@ -0,0 +1,142 @@
 +#!/usr/bin/env python
 +#
 +# python script to convert the handwritten chapter .texi files which include
@@ -98,7 +106,7 @@ index 0000000..34fed6e
 +    first_node = True
 +
 +    print ('<?xml version="1.0" encoding="UTF-8"?>')
-+    print ('<!DOCTYPE reference PUBLIC "-//OASIS//DTD DocBook V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">')
++    print ('<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">')
 +
 +    for l in sys.stdin.readlines():
 +	l = l.rstrip()
@@ -120,6 +128,9 @@ index 0000000..34fed6e
 +	# ditto var
 +	l = re.sub("@var{(.*?)}", "<varname>\\1</varname>", l)
 +
++	# handle @*
++	l = l.replace("@*", "</para><para>", 1)
++
 +	# remove @exdent
 +	l = l.replace("@exdent", "", 1)
 +	# remove @noindent
@@ -130,13 +141,12 @@ index 0000000..34fed6e
 +	    l = l.strip()
 +	    l = l.lower()
 +	    if first_node:
-+		print ('<reference id="%s" xmlns:xi="http://www.w3.org/2001/XInclude">' % l.replace(' ', '_'))
++		print ('<chapter id="%s" xmlns:xi="http://www.w3.org/2001/XInclude">' % l.replace(' ', '_'))
 +		first_node = False
 +	    continue
 +	elif l.startswith("@chapter "):
 +	    l = l.replace("@chapter ", "", 1)
 +	    print ('<title>%s</title>' % l)
-+	    print ('<partintro>')
 +	    print ('<para>')
 +	    state = State.para
 +	    continue
@@ -178,14 +188,15 @@ index 0000000..34fed6e
 +	elif l.startswith("@menu"):
 +	    if state == State.para:
 +		print("</para>")
-+	    print ('</partintro>')
 +	    state = State.skip
 +	    continue
 +	elif l.startswith("@endmenu"):
 +	    state = State.normal
 +	    continue
-+	elif (l.startswith("@page") or l.startswith("@cindex") or
-+	      l.startswith("@findex") or l.startswith("@example") or
++	elif  l.startswith("@cindex") or l.startswith("@findex"):
++	    l = l.split(None, 1)[1]
++	    l = "<indexterm><primary>" + l + "</primary></indexterm>"
++	elif (l.startswith("@page") or l.startswith("@example") or
 +	      l.startswith("@end example") or l.startswith("@ifset") or
 +	      l.startswith("@end ifset")):
 +	    continue
@@ -204,16 +215,18 @@ index 0000000..34fed6e
 +
 +	print (l)
 +
-+    print ('</reference>')
++    if state == State.para:
++	print ('</para>')
++    print ('</chapter>')
 +
 +if __name__ == "__main__" :
 +    main()
 diff --git a/newlib/doc/makedocbook.py b/newlib/doc/makedocbook.py
 new file mode 100755
-index 0000000..6dd4657
+index 0000000..81d9bd9
 --- /dev/null
 +++ b/newlib/doc/makedocbook.py
-@@ -0,0 +1,783 @@
+@@ -0,0 +1,792 @@
 +#!/usr/bin/env python
 +#
 +# python script to process makedoc instructions in a source file and produce
@@ -477,6 +490,16 @@ index 0000000..6dd4657
 +    # discard anything after the first word
 +    l = l.split()[0]
 +
++    # add indexterm
++    # (we could just index under all the refnames, but we control the indexing
++    # separately as that is what makedoc does)
++    indexterm = lxml.etree.SubElement(refentry, 'indexterm')
++    primary = lxml.etree.SubElement(indexterm, 'primary')
++    primary.text = l
++
++    # to validate, it seems we need to maintain refentry elements in a certain order
++    refentry[:] = sorted(refentry, key = lambda x: x.tag)
++
 +    # adds another alternate refname
 +    refnamediv = refentry.find('refnamediv')
 +
@@ -620,7 +643,6 @@ index 0000000..6dd4657
 +# NEWPAGE
 +#
 +# start a new refentry
-+# only actually used by efgcvt.c
 +
 +def newpage(c, t):
 +    global refentry
@@ -862,7 +884,7 @@ index 0000000..6dd4657
 +
 +def p_courierblock(p):
 +    '''courierblock : courier'''
-+    p[0] = '<code>' + p[1] + '</code>'
++    p[0] = '<literallayout class="monospaced">' + p[1] + '</literallayout>'
 +    parser_verbose(p)
 +
 +def p_courier(p):
@@ -998,36 +1020,40 @@ index 0000000..6dd4657
 +    else:
 +	main(sys.stdin)
 diff --git a/newlib/libc/Makefile.am b/newlib/libc/Makefile.am
-index 21a74fe..b70c59e 100644
+index 21a74fe..86c77f4 100644
 --- a/newlib/libc/Makefile.am
 +++ b/newlib/libc/Makefile.am
-@@ -223,6 +223,20 @@ info_TEXINFOS = libc.texinfo
+@@ -223,6 +223,23 @@ info_TEXINFOS = libc.texinfo
  libc_TEXINFOS = sigset.texi extra.texi posix.texi stdio64.texi iconvset.texi \
  	targetdep.tex $(SUBDEFS)
  
 +docbook: $(SUBDEFS) libc.in.xml
 +	xsltproc --xinclude --path ${builddir} --nonet ${srcdir}/../refcontainers.xslt ${srcdir}/libc.in.xml >libc.xml
-+	-xmllint --xinclude --path ${builddir} --postvalid --noent --nonet --noout libc.xml
-+	xmlto --skip-validation --searchpath ${builddir} html-nochunks --stringparam funcsynopsis.style=ansi libc.xml
-+	xmlto --skip-validation --searchpath ${builddir} man -m ${srcdir}/../man.xsl libc.xml
++	-xmllint --postvalid --noent --nonet --noout libc.xml
++	xmlto --skip-validation html-nochunks --stringparam funcsynopsis.style=ansi libc.xml
++	xmlto --skip-validation pdf --with-dblatex --stringparam funcsynopsis.style=ansi libc.xml
++	xmlto --skip-validation man -m ${srcdir}/../man.xsl libc.xml
 +
 +doc: docbook
 +
 +install-data-local:
 +	mkdir -p $(DESTDIR)$(htmldir)
 +	$(INSTALL_DATA) libc.html $(DESTDIR)$(htmldir)/
++	mkdir -p $(DESTDIR)$(docdir)
++	$(INSTALL_DATA) libc.pdf $(DESTDIR)$(docdir)/
 +	mkdir -p $(DESTDIR)$(mandir)/man3
 +	$(INSTALL_DATA) *.3 $(DESTDIR)$(mandir)/man3
 +
  .PHONY: force
  force:
  
-@@ -230,7 +244,7 @@ CLEANFILES = $(CRT0) \
+@@ -230,7 +247,8 @@ CLEANFILES = $(CRT0) \
  	sigset.texi stmp-sigset extra.texi stmp-extra \
  	stdio64.texi stmp-stdio64 targetdep.tex stmp-targetdep \
  	tmp-sigset.texi tmp-iconvset.texi tmp-extra.texi \
 -	tmp-stdio64.texi tmp-posix.texi tmp-targetdep.texi
-+	tmp-stdio64.texi tmp-posix.texi tmp-targetdep.texi *.3 *.xml
++	tmp-stdio64.texi tmp-posix.texi tmp-targetdep.texi \
++	*.xml libc.hml libc.pdf *.3
  
  ACLOCAL_AMFLAGS = -I .. -I ../..
  CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
@@ -1076,10 +1102,10 @@ index 785bf7a..03fbe4b 100644
  $(lpfx)ctype_.$(oext): ctype_.c ctype_iso.h ctype_cp.h
 diff --git a/newlib/libc/libc.in.xml b/newlib/libc/libc.in.xml
 new file mode 100644
-index 0000000..615a069
+index 0000000..50d4460
 --- /dev/null
 +++ b/newlib/libc/libc.in.xml
-@@ -0,0 +1,25 @@
+@@ -0,0 +1,43 @@
 +<?xml version="1.0" encoding="UTF-8"?>
 +<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
 +<book id="libc" xmlns:xi="http://www.w3.org/2001/XInclude">
@@ -1091,19 +1117,37 @@ index 0000000..615a069
 +  <xi:include href="stdlib.xml"/>
 +  <xi:include href="ctype.xml"/>
 +  <xi:include href="stdio.xml"/>
-+  <xi:include href="stdio64.xml"/>
++  <!-- stdio64 is optional -->
++  <xi:include href="stdio64.xml">
++    <xi:fallback/>
++  </xi:include>
 +
 +  <xi:include href="strings.xml"/>
 +  <xi:include href="wcstrings.xml"/>
-+  <xi:include href="signal.xml"/>
++  <!-- signals is optional -->
++  <xi:include href="signal.xml">
++    <xi:fallback/>
++  </xi:include>
 +
 +  <xi:include href="time.xml"/>
 +  <xi:include href="locale.xml"/>
 +  <!-- reent.tex contains fixed content and nothing seems to include the .def made in reent/ -->
 +
 +  <xi:include href="misc.xml"/>
-+  <xi:include href="posix.xml"/>
++  <!-- posix is optional -->
++  <xi:include href="posix.xml">
++      <xi:fallback/>
++  </xi:include>
 +  <!-- XXX: stdarg.h and vararg.h are directly described in libc.texinfo -->
++
++  <!-- iconv is optional -->
++  <xi:include href="iconv.xml">
++      <xi:fallback/>
++  </xi:include>
++
++  <!-- processing should insert index here -->
++  <index/>
++
 +</book>
 diff --git a/newlib/libc/locale/Makefile.am b/newlib/libc/locale/Makefile.am
 index 66cc7ba..545a072 100644
@@ -1209,21 +1253,6 @@ index 0056cc1..7dae470 100644
  
 -CLEANFILES = $(CHEWOUT_FILES) *.ref
 +CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
-diff --git a/newlib/libc/reent/reent.tex b/newlib/libc/reent/reent.tex
-index 881c572..12597be 100644
---- a/newlib/libc/reent/reent.tex
-+++ b/newlib/libc/reent/reent.tex
-@@ -15,8 +15,8 @@ reentrant fashion.
- @findex reent.h
- @cindex reentrancy structure
- These hooks use the structure @code{_reent} defined in @file{reent.h}.
--A variable defined as @samp{struct _reent} is called a @dfn{reentrancy
--structure}.  All functions which must manipulate global information are
-+A variable defined as @samp{struct _reent} is called a @dfn{reentrancy structure}.
-+All functions which must manipulate global information are
- available in two versions.  The first version has the usual name, and
- uses a single global instance of the reentrancy structure.  The second
- has a different name, normally formed by prepending @samp{_} and
 diff --git a/newlib/libc/search/Makefile.am b/newlib/libc/search/Makefile.am
 index defb6bb..34248ee 100644
 --- a/newlib/libc/search/Makefile.am
@@ -1391,10 +1420,10 @@ index 914cbca..b7cacfd 100644
 +
 +CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
 diff --git a/newlib/libc/stdlib/Makefile.am b/newlib/libc/stdlib/Makefile.am
-index c86010a..97ec905 100644
+index ead5dd1..716202f 100644
 --- a/newlib/libc/stdlib/Makefile.am
 +++ b/newlib/libc/stdlib/Makefile.am
-@@ -290,20 +290,34 @@ CHEWOUT_FILES= \
+@@ -292,20 +292,34 @@ CHEWOUT_FILES= \
  	wcstombs.def	\
  	wctomb.def	
  
@@ -1516,10 +1545,10 @@ index 95f088a..39d47bf 100644
 +
 +CLEANFILES = $(CHEWOUT_FILES) *.ref  $(DOCBOOK_OUT_FILES)
 diff --git a/newlib/libm/Makefile.am b/newlib/libm/Makefile.am
-index bc45816..2a09a33 100644
+index bc45816..9d03dc2 100644
 --- a/newlib/libm/Makefile.am
 +++ b/newlib/libm/Makefile.am
-@@ -58,10 +58,24 @@ math/stmp-def: stmp-targetdep ; @true
+@@ -58,10 +58,27 @@ math/stmp-def: stmp-targetdep ; @true
  
  complex/stmp-def: stmp-targetdep ; @true
  
@@ -1527,6 +1556,7 @@ index bc45816..2a09a33 100644
 +	xsltproc --xinclude --path ${builddir} --nonet ${srcdir}/../refcontainers.xslt ${srcdir}/libm.in.xml >libm.xml
 +	-xmllint --xinclude -path ${builddir} --postvalid --noent --nonet --noout libm.xml
 +	xmlto --skip-validation --searchpath ${builddir} html-nochunks --stringparam funcsynopsis.style=ansi libm.xml
++	xmlto --skip-validation --searchpath ${builddir} pdf --with-dblatex --stringparam funcsynopsis.style=ansi libm.xml
 +	xmlto --skip-validation --searchpath ${builddir} man -m ${srcdir}/../man.xsl libm.xml
 +
 +doc: docbook
@@ -1534,6 +1564,8 @@ index bc45816..2a09a33 100644
 +install-data-local:
 +	mkdir -p $(DESTDIR)$(htmldir)
 +	$(INSTALL_DATA) libm.html $(DESTDIR)$(htmldir)/
++	mkdir -p $(DESTDIR)$(docdir)
++	$(INSTALL_DATA) libm.pdf $(DESTDIR)$(docdir)/
 +	mkdir -p $(DESTDIR)$(mandir)/man3
 +	$(INSTALL_DATA) *.3 $(DESTDIR)$(mandir)/man3/
 +
@@ -1541,7 +1573,7 @@ index bc45816..2a09a33 100644
  force:
  
 -CLEANFILES = tmp.texi targetdep.tex stmp-targetdep
-+CLEANFILES = tmp.texi targetdep.tex stmp-targetdep *.3 *.xml
++CLEANFILES = tmp.texi targetdep.tex stmp-targetdep *.xml libm.hml libm.pdf *.3
  
  ACLOCAL_AMFLAGS = -I .. -I ../..
  CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
@@ -1639,7 +1671,7 @@ index 0000000..c0e0506
 +  <xi:include href="math.xml"/>
 +</book>
 diff --git a/newlib/libm/math/Makefile.am b/newlib/libm/math/Makefile.am
-index 2616ada..bfaca77 100644
+index 2616ada..c8fb416 100644
 --- a/newlib/libm/math/Makefile.am
 +++ b/newlib/libm/math/Makefile.am
 @@ -82,14 +82,28 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
@@ -1671,78 +1703,15 @@ index 2616ada..bfaca77 100644
 +
 +doc: doc-docbook doc-texinfo
 +
-+CLEANFILES = $(chobj) *.ref  $(DOCBOOK_OUT_FILES)
++CLEANFILES = $(chobj) *.ref $(DOCBOOK_OUT_FILES)
  
  # A partial dependency list.
  
 diff --git a/newlib/libm/mathfp/Makefile.am b/newlib/libm/mathfp/Makefile.am
-index eece678..1f889e0 100644
+index 0caab07..65a5e27 100644
 --- a/newlib/libm/mathfp/Makefile.am
 +++ b/newlib/libm/mathfp/Makefile.am
-@@ -58,34 +58,34 @@ endif # USE_LIBTOOL
- 
- include $(srcdir)/../../Makefile.shared
- 
--chobj = eacosh.def \
--	eatanh.def \
--	ehypot.def \
--	eremainder.def \
--	erlgamma.def \
--	sacos.def \
--	sasine.def \
--	sasinh.def \
--	satan.def \
--	satan2.def \
--	satangent.def \
--	scosh.def \
--	serf.def \
--	sexp.def \
--	sfabs.def \
--	sfloor.def \
--	sfmod.def \
--	sfrexp.def \
--	sldexp.def \
--	slog10.def \
--	slogarithm.def \
--	spow.def \
--	ssine.def \
--	ssineh.def \
--	ssqrt.def \
--	stan.def \
--	stanh.def \
--	wjn.def
-+chobj = e_acosh.def \
-+	e_atanh.def \
-+	e_hypot.def \
-+	e_remainder.def \
-+	er_lgamma.def \
-+	s_acos.def \
-+	s_asine.def \
-+	s_asinh.def \
-+	s_atan.def \
-+	s_atan2.def \
-+	s_atangent.def \
-+	s_cosh.def \
-+	s_erf.def \
-+	s_exp.def \
-+	s_fabs.def \
-+	s_floor.def \
-+	s_fmod.def \
-+	s_frexp.def \
-+	s_ldexp.def \
-+	s_log10.def \
-+	s_logarithm.def \
-+	s_pow.def \
-+	s_sine.def \
-+	s_sineh.def \
-+	s_sqrt.def \
-+	s_tan.def \
-+	s_tanh.def \
-+	w_jn.def
- 
- SUFFIXES = .def
- 
-@@ -93,12 +93,26 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
+@@ -93,14 +93,28 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
  
  .c.def:
  	$(CHEW) < $< > $*.def 2> $*.ref
@@ -1756,7 +1725,8 @@ index eece678..1f889e0 100644
 -	cat $(srcdir)/mathfp.tex >> $(TARGETDOC)
 +doc-texinfo: $(chobj)
 +	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
-+
+ 
+-CLEANFILES = $(chobj) *.ref
 +DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
 +DOCBOOK_OUT_FILES = $(chobj:.def=.xml)
 +DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
@@ -1769,8 +1739,10 @@ index eece678..1f889e0 100644
 +	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
 +
 +doc: doc-docbook doc-texinfo
++
++CLEANFILES = $(chobj) *.ref $(DOCBOOK_OUT_FILES)
  
- CLEANFILES = $(chobj) *.ref
+ # A partial dependency list.
  
 diff --git a/newlib/man.xsl b/newlib/man.xsl
 new file mode 100644
@@ -1812,5 +1784,5 @@ index 0000000..85396f6
 + </xsl:template>
 +</xsl:stylesheet>
 -- 
-2.4.5
+2.5.3
 

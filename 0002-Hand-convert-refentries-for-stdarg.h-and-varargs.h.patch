@@ -1,53 +1,53 @@
-From 5433235c5eaffd107400bb83f99d709c4552e514 Mon Sep 17 00:00:00 2001
-From: Jon TURNEY <jon.turney@dronecode.org.uk>
+From 72ad05b6088b40fca54f80d76f73f6d408357a12 Mon Sep 17 00:00:00 2001
+From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Wed, 24 Jun 2015 17:21:50 +0100
-Subject: [PATCH 4/6] Hand-converted refentries for stdarg.h and varargs.h
+Subject: [PATCH 2/8] Hand-convert refentries for stdarg.h and varargs.h
 
+v2
+Structure as chapter, not reference
+
+Signed-off-by: Jon Turney <jon.turney@dronecode.org.uk>
 ---
- newlib/libc/libc.in.xml  | 387 ++++++++++++++++++++++++++++++++++++++++++++++-
+ newlib/libc/libc.in.xml  | 380 ++++++++++++++++++++++++++++++++++++++++++++++-
  newlib/libc/libc.texinfo |   2 +-
- 2 files changed, 387 insertions(+), 2 deletions(-)
+ 2 files changed, 380 insertions(+), 2 deletions(-)
 
 diff --git a/newlib/libc/libc.in.xml b/newlib/libc/libc.in.xml
-index 615a069..e7e1302 100644
+index 50d4460..efe96bd 100644
 --- a/newlib/libc/libc.in.xml
 +++ b/newlib/libc/libc.in.xml
-@@ -21,5 +21,390 @@
- 
-   <xi:include href="misc.xml"/>
-   <xi:include href="posix.xml"/>
+@@ -30,7 +30,385 @@
+   <xi:include href="posix.xml">
+       <xi:fallback/>
+   </xi:include>
 -  <!-- XXX: stdarg.h and vararg.h are directly described in libc.texinfo -->
 +
 +  <!-- stdarg.h and vararg.h are directly described in libc.texinfo, so provide equivalent refentries -->
-+  <part id="arglists">
++  <chapter id="arglists">
 +    <title>Variable Argument Lists</title>
-+    <partintro>
-+      <para>
-+	The <code>printf</code> family of functions is defined to accept a
-+	variable number of arguments, rather than a fixed argument list.  You
-+	can define your own functions with a variable argument list, by using
-+	macro definitions from either <filename>stdarg.h</filename> (for
-+	compatibility with ANSI C) or from <filename>varargs.h</filename> (for
-+	compatibility with a popular convention prior to ANSI C).
-+      </para>
-+    </partintro>
++    <para>
++      The <code>printf</code> family of functions is defined to accept a
++      variable number of arguments, rather than a fixed argument list.  You can
++      define your own functions with a variable argument list, by using macro
++      definitions from either <filename>stdarg.h</filename> (for compatibility
++      with ANSI C) or from <filename>varargs.h</filename> (for compatibility
++      with a popular convention prior to ANSI C).
++    </para>
 +
-+    <reference>
++    <section>
 +      <title>ANSI-standard macros (<filename>stdarg.h</filename>)</title>
-+      <partintro>
-+	<para>
-+	  In ANSI C, a function has a variable number of arguments when its
-+	  parameter list ends in an ellipsis (<code>...</code>).  The parameter list
-+	  must also include at least one explicitly named argument; that argument is
-+	  used to initialize the variable list data structure.
-+	</para>
-+	<para>
-+	  ANSI C defines three macros (<code>va_start</code>, <code>va_arg</code>,
-+	  and <code>va_end</code>) to operate on variable argument lists.
-+	  <filename>stdarg.h</filename> also defines a special type to represent
-+	  variable argument lists: this type is called <code>va_list</code>.
-+	</para>
-+      </partintro>
++      <para>
++	In ANSI C, a function has a variable number of arguments when its
++	parameter list ends in an ellipsis (<code>...</code>).  The parameter
++	list must also include at least one explicitly named argument; that
++	argument is used to initialize the variable list data structure.
++      </para>
++      <para>
++	ANSI C defines three macros (<code>va_start</code>, <code>va_arg</code>,
++	and <code>va_end</code>) to operate on variable argument lists.
++	<filename>stdarg.h</filename> also defines a special type to represent
++	variable argument lists: this type is called <code>va_list</code>.
++      </para>
 +
 +      <refentry id="va_start">
 +	<refmeta>
@@ -60,13 +60,13 @@ index 615a069..e7e1302 100644
 +	</refnamediv>
 +	<refsynopsisdiv>
 +	  <funcsynopsis>
-+            <funcsynopsisinfo>#include &lt;stdarg.h&gt;
++	    <funcsynopsisinfo>#include &lt;stdarg.h&gt;
 +	    </funcsynopsisinfo>
-+            <funcprototype>
-+              <funcdef>void <function>va_start</function></funcdef>
-+              <paramdef>va_list <parameter>ap</parameter></paramdef>
++	    <funcprototype>
++	      <funcdef>void <function>va_start</function></funcdef>
++	      <paramdef>va_list <parameter>ap</parameter></paramdef>
 +	      <paramdef><parameter>rightmost</parameter></paramdef>
-+            </funcprototype>
++	    </funcprototype>
 +	  </funcsynopsis>
 +	</refsynopsisdiv>
 +	<refsect1>
@@ -107,13 +107,13 @@ index 615a069..e7e1302 100644
 +	</refnamediv>
 +	<refsynopsisdiv>
 +	  <funcsynopsis>
-+            <funcsynopsisinfo>#include &lt;stdarg.h&gt;
++	    <funcsynopsisinfo>#include &lt;stdarg.h&gt;
 +	    </funcsynopsisinfo>
-+            <funcprototype>
-+              <funcdef>type <function>va_args</function></funcdef>
-+              <paramdef>va_list <parameter>ap</parameter></paramdef>
++	    <funcprototype>
++	      <funcdef>type <function>va_args</function></funcdef>
++	      <paramdef>va_list <parameter>ap</parameter></paramdef>
 +	      <paramdef><parameter>type</parameter></paramdef>
-+            </funcprototype>
++	    </funcprototype>
 +	  </funcsynopsis>
 +	</refsynopsisdiv>
 +	<refsect1>
@@ -166,12 +166,12 @@ index 615a069..e7e1302 100644
 +	</refnamediv>
 +	<refsynopsisdiv>
 +	  <funcsynopsis>
-+            <funcsynopsisinfo>#include &lt;stdarg.h&gt;
++	    <funcsynopsisinfo>#include &lt;stdarg.h&gt;
 +	    </funcsynopsisinfo>
-+            <funcprototype>
-+              <funcdef>void <function>va_end</function></funcdef>
-+              <paramdef>va_list <parameter>ap</parameter></paramdef>
-+            </funcprototype>
++	    <funcprototype>
++	      <funcdef>void <function>va_end</function></funcdef>
++	      <paramdef>va_list <parameter>ap</parameter></paramdef>
++	    </funcprototype>
 +	  </funcsynopsis>
 +	</refsynopsisdiv>
 +	<refsect1>
@@ -194,26 +194,23 @@ index 615a069..e7e1302 100644
 +	  </para>
 +	</refsect1>
 +      </refentry>
-+    </reference>
++    </section>
 +
-+    <reference>
++    <section>
 +      <title>Traditional macros (<filename>varargs.h</filename>)</title>
-+      <partintro>
-+	<para>
-+	  If your C compiler predates ANSI C, you may still be able to use
-+	  variable argument lists using the macros from the
-+	  <filename>varargs.h</filename> header file.  These macros resemble
-+	  their ANSI counterparts, but have important differences in usage.  In
-+	  particular, since traditional C has no declaration mechanism for
-+	  variable argument lists, two additional macros are provided simply for
-+	  the purpose of defining functions with variable argument lists.
-+	</para>
-+	<para>
-+	  As with <filename>stdarg.h</filename> , the type <code>va_list</code>
-+	  is used to hold a data structure representing a variable argument
-+	  list.
-+	</para>
-+      </partintro>
++      <para>
++	If your C compiler predates ANSI C, you may still be able to use
++	variable argument lists using the macros from the
++	<filename>varargs.h</filename> header file.  These macros resemble their
++	ANSI counterparts, but have important differences in usage.  In
++	particular, since traditional C has no declaration mechanism for
++	variable argument lists, two additional macros are provided simply for
++	the purpose of defining functions with variable argument lists.
++      </para>
++      <para>
++	As with <filename>stdarg.h</filename> , the type <code>va_list</code> is
++	used to hold a data structure representing a variable argument list.
++      </para>
 +
 +      <refentry id="va_alist">
 +	<refmeta>
@@ -227,13 +224,13 @@ index 615a069..e7e1302 100644
 +	</refnamediv>
 +	<refsynopsisdiv>
 +	  <funcsynopsis>
-+            <funcsynopsisinfo>#include &lt;varargs.h&gt;
++	    <funcsynopsisinfo>#include &lt;varargs.h&gt;
 +	    </funcsynopsisinfo>
-+            <funcprototype>
-+              <funcdef><function>function</function></funcdef>
-+              <paramdef><parameter>va_alist</parameter></paramdef>
-+            </funcprototype>
-+            <funcsynopsisinfo>va_dcl
++	    <funcprototype>
++	      <funcdef><function>function</function></funcdef>
++	      <paramdef><parameter>va_alist</parameter></paramdef>
++	    </funcprototype>
++	    <funcsynopsisinfo>va_dcl
 +	    </funcsynopsisinfo>
 +	  </funcsynopsis>
 +	</refsynopsisdiv>
@@ -276,12 +273,12 @@ index 615a069..e7e1302 100644
 +	</refnamediv>
 +	<refsynopsisdiv>
 +	  <funcsynopsis>
-+            <funcsynopsisinfo>#include &lt;varargs.h&gt;
++	    <funcsynopsisinfo>#include &lt;varargs.h&gt;
 +	    </funcsynopsisinfo>
-+            <funcprototype>
-+              <funcdef><function>va_start</function></funcdef>
-+              <paramdef>va_list <parameter>ap</parameter></paramdef>
-+            </funcprototype>
++	    <funcprototype>
++	      <funcdef><function>va_start</function></funcdef>
++	      <paramdef>va_list <parameter>ap</parameter></paramdef>
++	    </funcprototype>
 +	  </funcsynopsis>
 +	</refsynopsisdiv>
 +	<refsect1>
@@ -322,13 +319,13 @@ index 615a069..e7e1302 100644
 +	</refnamediv>
 +	<refsynopsisdiv>
 +	  <funcsynopsis>
-+            <funcsynopsisinfo>#include &lt;varargs.h&gt;
++	    <funcsynopsisinfo>#include &lt;varargs.h&gt;
 +	    </funcsynopsisinfo>
-+            <funcprototype>
-+              <funcdef>type <function>va_arg</function></funcdef>
-+              <paramdef>va_list <parameter>ap</parameter></paramdef>
++	    <funcprototype>
++	      <funcdef>type <function>va_arg</function></funcdef>
++	      <paramdef>va_list <parameter>ap</parameter></paramdef>
 +	      <paramdef><parameter>type</parameter></paramdef>
-+            </funcprototype>
++	    </funcprototype>
 +	  </funcsynopsis>
 +	</refsynopsisdiv>
 +	<refsect1>
@@ -370,12 +367,12 @@ index 615a069..e7e1302 100644
 +	</refnamediv>
 +	<refsynopsisdiv>
 +	  <funcsynopsis>
-+            <funcsynopsisinfo>#include &lt;varargs.h&gt;
++	    <funcsynopsisinfo>#include &lt;varargs.h&gt;
 +	    </funcsynopsisinfo>
-+            <funcprototype>
-+              <funcdef><function>va_end</function></funcdef>
-+              <paramdef>va_list <parameter>ap</parameter></paramdef>
-+            </funcprototype>
++	    <funcprototype>
++	      <funcdef><function>va_end</function></funcdef>
++	      <paramdef>va_list <parameter>ap</parameter></paramdef>
++	    </funcprototype>
 +	  </funcsynopsis>
 +	</refsynopsisdiv>
 +	<refsect1>
@@ -401,9 +398,11 @@ index 615a069..e7e1302 100644
 +	</refsect1>
 +      </refentry>
 +
-+    </reference>
-+  </part>
- </book>
++    </section>
++  </chapter>
+ 
+   <!-- iconv is optional -->
+   <xi:include href="iconv.xml">
 diff --git a/newlib/libc/libc.texinfo b/newlib/libc/libc.texinfo
 index 6216c99..34a6e61 100644
 --- a/newlib/libc/libc.texinfo
@@ -418,5 +417,5 @@ index 6216c99..34a6e61 100644
  @strong{Returns}@*
  @code{va_start} does not return a result.
 -- 
-2.4.5
+2.5.3
 
