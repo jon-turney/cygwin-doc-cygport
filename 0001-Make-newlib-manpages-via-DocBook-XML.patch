@@ -1,7 +1,7 @@
-From 7dde0838512ef7ecb8e93e57dfd8881a15d33762 Mon Sep 17 00:00:00 2001
+From 8c016c65a7cfea3b3145ca049f6beb21763c570d Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
-Date: Sat, 18 Jul 2015 19:12:45 +0100
-Subject: [PATCH 1/8] Make newlib manpages via DocBook XML
+Date: Mon, 26 Oct 2015 16:46:13 +0000
+Subject: [PATCH 01/13] Make newlib manpages via DocBook XML
 
 Add makedocbook, a tool to process makedoc markup and output DocBook XML
 refentries.
@@ -28,34 +28,28 @@ Remove unneeded searchpaths since we xinclude everything during xsltproc process
 Structure using chapters
 Mark optional includes with an empty fallback
 
-Signed-off-by: Jon TURNEY <jon.turney@dronecode.org.uk>
-Signed-off-by: Jon Turney <jon.turney@dronecode.org.uk>
+v3:
+Update for common Makefile.shared rules
+Fix iconv to promote iconv.xml from iconv/lib/ like iconv.def
+
+v4:
+Include an index for libm as well
+FUNCTION separator is now always em-dash
+prototype without a terminating ; is an error
+Convert texinfo @xref to Docbook XML <xref/>
 ---
+ newlib/Makefile.shared             |  26 +-
  newlib/doc/.gitignore              |   3 +
  newlib/doc/chapter-texi2docbook.py | 142 +++++++
  newlib/doc/makedocbook.py          | 792 +++++++++++++++++++++++++++++++++++++
  newlib/libc/Makefile.am            |  20 +-
- newlib/libc/ctype/Makefile.am      |  24 +-
+ newlib/libc/iconv/Makefile.am      |   3 +
  newlib/libc/libc.in.xml            |  43 ++
- newlib/libc/locale/Makefile.am     |  21 +-
- newlib/libc/misc/Makefile.am       |  22 +-
- newlib/libc/posix/Makefile.am      |  22 +-
- newlib/libc/search/Makefile.am     |  19 +-
- newlib/libc/signal/Makefile.am     |  24 +-
- newlib/libc/stdio/Makefile.am      |  24 +-
- newlib/libc/stdio64/Makefile.am    |  23 +-
- newlib/libc/stdlib/Makefile.am     |  24 +-
- newlib/libc/string/Makefile.am     |  21 +-
- newlib/libc/time/Makefile.am       |  24 +-
  newlib/libm/Makefile.am            |  19 +-
- newlib/libm/common/Makefile.am     |  17 +-
- newlib/libm/complex/Makefile.am    |  24 +-
- newlib/libm/libm.in.xml            |  11 +
- newlib/libm/math/Makefile.am       |  22 +-
- newlib/libm/mathfp/Makefile.am     |  22 +-
+ newlib/libm/libm.in.xml            |  15 +
  newlib/man.xsl                     |  13 +
  newlib/refcontainers.xslt          |  14 +
- 24 files changed, 1322 insertions(+), 68 deletions(-)
+ 11 files changed, 1083 insertions(+), 7 deletions(-)
  create mode 100644 newlib/doc/.gitignore
  create mode 100755 newlib/doc/chapter-texi2docbook.py
  create mode 100755 newlib/doc/makedocbook.py
@@ -64,6 +58,52 @@ Signed-off-by: Jon Turney <jon.turney@dronecode.org.uk>
  create mode 100644 newlib/man.xsl
  create mode 100644 newlib/refcontainers.xslt
 
+diff --git a/newlib/Makefile.shared b/newlib/Makefile.shared
+index 6e026fd..c563efd 100644
+--- a/newlib/Makefile.shared
++++ b/newlib/Makefile.shared
+@@ -9,20 +9,36 @@ objectlist.awk.in: $(noinst_LTLIBRARIES)
+ # documentation rules
+ #
+ 
+-SUFFIXES = .def
++SUFFIXES = .def .xml
+ 
+ CHEW = ${top_builddir}/../doc/makedoc -f $(top_srcdir)/../doc/doc.str
+ 
+ .c.def:
+-	$(CHEW) < $< > $*.def 2> $*.ref
+-	touch stmp-def
++	$(CHEW) < $< > $*.def 2> $*.ref || ( rm $*.def && false )
++	@touch stmp-def
+ 
+ TARGETDOC ?= ../tmp.texi
+ 
+-doc: $(CHEWOUT_FILES)
++doc-texinfo: $(CHEWOUT_FILES)
+ 	for chapter in $(CHAPTERS) ; \
+ 	do \
+ 	  cat $(srcdir)/$$chapter >> $(TARGETDOC) ; \
+ 	done
+ 
+-CLEANFILES = $(CHEWOUT_FILES) *.ref
++DOCBOOK_CHEW = ${top_srcdir}/../doc/makedocbook.py
++DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
++DOCBOOK_CHAPTERS = $(CHAPTERS:.tex=.xml)
++
++.c.xml:
++	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
++	@touch stmp-xml
++
++doc-docbook: $(DOCBOOK_OUT_FILES)
++	for chapter in $(DOCBOOK_CHAPTERS) ; \
++	do \
++	  ${top_srcdir}/../doc/chapter-texi2docbook.py <$(srcdir)/$${chapter%.xml}.tex >../$$chapter ; \
++	done
++
++doc: doc-docbook doc-texinfo
++
++CLEANFILES = $(CHEWOUT_FILES) $(CHEWOUT_FILES:.def=.ref) $(DOCBOOK_OUT_FILES)
 diff --git a/newlib/doc/.gitignore b/newlib/doc/.gitignore
 new file mode 100644
 index 0000000..b6fcb73
@@ -223,7 +263,7 @@ index 0000000..1cd1e2e
 +    main()
 diff --git a/newlib/doc/makedocbook.py b/newlib/doc/makedocbook.py
 new file mode 100755
-index 0000000..81d9bd9
+index 0000000..faf92ce
 --- /dev/null
 +++ b/newlib/doc/makedocbook.py
 @@ -0,0 +1,792 @@
@@ -395,12 +435,7 @@ index 0000000..81d9bd9
 +    if verbose:
 +	print('FUNCTION %s' % l, file=sys.stderr)
 +
-+    # Some pages use an en-dash '--' rather than an em-dash '---', so that
-+    # should be handled as well, but that is probably a markup error
-+    if '---' in l:
-+	separator = '---'
-+    elif '--' in l:
-+	separator = '--'
++    separator = '---'
 +
 +    if ';' in l:
 +	# fpclassify has an unusual format we also need to handle
@@ -446,7 +481,7 @@ index 0000000..81d9bd9
 +
 +    # FUNCTION implies starting a new refentry
 +    if refentry is not None:
-+	print("FUNCTION without NEWPAGE", file=sys.stderr)
++	print("multiple FUNCTIONs without NEWPAGE", file=sys.stderr)
 +	exit(1)
 +
 +    # create the refentry
@@ -537,9 +572,11 @@ index 0000000..81d9bd9
 +	else:
 +	    s = s + l
 +
-+	    # some prototypes are missing the terminating ';', so add it if needed
++	    # a prototype without a terminating ';' is an error
 +	    if s.endswith(')'):
++		print("'%s' missing terminating semicolon" % l, file=sys.stderr)
 +		s = s + ';'
++		exit(1)
 +
 +	    if ';' in s:
 +		synopsis_for_prototype(funcsynopsis, s)
@@ -706,6 +743,9 @@ index 0000000..81d9bd9
 +    s = s.replace('@minus{}', '&#x2212;')
 +    # convert @dots{} to U+2026 HORIZONTAL ELLIPSIS
 +    s = s.replace('@dots{}', '&#x2026;')
++
++    # convert xref and pxref
++    s = re.sub('@xref{(.*?)}', "See <xref linkend='\\1'/>", s)
 +
 +    # very hacky way of dealing with @* to force a newline
 +    s = s.replace('@*', '</para><para>')
@@ -1057,49 +1097,20 @@ index 21a74fe..86c77f4 100644
  
  ACLOCAL_AMFLAGS = -I .. -I ../..
  CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
-diff --git a/newlib/libc/ctype/Makefile.am b/newlib/libc/ctype/Makefile.am
-index 785bf7a..03fbe4b 100644
---- a/newlib/libc/ctype/Makefile.am
-+++ b/newlib/libc/ctype/Makefile.am
-@@ -98,19 +98,33 @@ CHEWOUT_FILES= \
- 	wctrans.def	\
- 	wctype.def	
+diff --git a/newlib/libc/iconv/Makefile.am b/newlib/libc/iconv/Makefile.am
+index e7ffefa..c419924 100644
+--- a/newlib/libc/iconv/Makefile.am
++++ b/newlib/libc/iconv/Makefile.am
+@@ -18,6 +18,9 @@ CHAPTERS = iconv.tex
+ iconv.def: lib/iconv.def
+ 	cp lib/iconv.def iconv.def
  
--SUFFIXES = .def
-+SUFFIXES = .def .xml
- 
- CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
- 
- .c.def:
- 	$(CHEW) < $< > $*.def 2> $*.ref
--	touch stmp-def
-+	@touch stmp-def
- 
-+CHAPTER = ctype.tex
- TARGETDOC = ../tmp.texi
- 
--doc: $(CHEWOUT_FILES)
--	cat $(srcdir)/ctype.tex >> $(TARGETDOC)
-+doc-texinfo: $(CHEWOUT_FILES)
-+	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
- 
--CLEANFILES = $(CHEWOUT_FILES) *.ref
-+DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
-+DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
-+DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
++iconv.xml: lib/iconv.xml
++	cp lib/iconv.xml iconv.xml
 +
-+.c.xml:
-+	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
-+	@touch stmp-xml
-+
-+doc-docbook: $(DOCBOOK_OUT_FILES)
-+	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/$(CHAPTER) >../$(DOCBOOK_CHAPTER)
-+
-+doc: doc-docbook doc-texinfo
-+
-+CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
- 
- $(lpfx)ctype_.$(oext): ctype_.c ctype_iso.h ctype_cp.h
+ stmp-def: force
+ 	(cd lib && $(MAKE) doc)
+ 	touch $@
 diff --git a/newlib/libc/libc.in.xml b/newlib/libc/libc.in.xml
 new file mode 100644
 index 0000000..50d4460
@@ -1149,401 +1160,6 @@ index 0000000..50d4460
 +  <index/>
 +
 +</book>
-diff --git a/newlib/libc/locale/Makefile.am b/newlib/libc/locale/Makefile.am
-index 66cc7ba..545a072 100644
---- a/newlib/libc/locale/Makefile.am
-+++ b/newlib/libc/locale/Makefile.am
-@@ -44,12 +44,25 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
- 
- .c.def:
- 	$(CHEW) < $< > $*.def 2> $*.ref
--	touch stmp-def
-+	@touch stmp-def
- 
-+CHAPTER = locale.tex
- TARGETDOC = ../tmp.texi
- 
--doc: $(CHEWOUT_FILES)
--	cat $(srcdir)/locale.tex >> $(TARGETDOC)
-+doc-texinfo: $(CHEWOUT_FILES)
-+	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
- 
--CLEANFILES = $(CHEWOUT_FILES) *.ref
-+DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
-+DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
-+DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
- 
-+.c.xml:
-+	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
-+	@touch stmp-xml
-+
-+doc-docbook: $(DOCBOOK_OUT_FILES)
-+	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
-+
-+doc: doc-docbook doc-texinfo
-+
-+CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
-diff --git a/newlib/libc/misc/Makefile.am b/newlib/libc/misc/Makefile.am
-index 8ac62a2..6774a13 100644
---- a/newlib/libc/misc/Makefile.am
-+++ b/newlib/libc/misc/Makefile.am
-@@ -29,11 +29,25 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
- 
- .c.def:
- 	$(CHEW) < $< > $*.def 2> $*.ref
--	touch stmp-def
-+	@touch stmp-def
- 
-+CHAPTER = misc.tex
- TARGETDOC = ../tmp.texi
- 
--doc: $(CHEWOUT_FILES)
--	cat $(srcdir)/misc.tex >> $(TARGETDOC)
-+doc-texinfo: $(CHEWOUT_FILES)
-+	cat $(srcdir)/${CHAPTER} >> $(TARGETDOC)
- 
--CLEANFILES = $(CHEWOUT_FILES) *.ref
-+DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
-+DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
-+DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
-+
-+.c.xml:
-+	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
-+	@touch stmp-xml
-+
-+doc-docbook: $(DOCBOOK_OUT_FILES)
-+	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
-+
-+doc: doc-docbook doc-texinfo
-+
-+CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
-diff --git a/newlib/libc/posix/Makefile.am b/newlib/libc/posix/Makefile.am
-index 0056cc1..7dae470 100644
---- a/newlib/libc/posix/Makefile.am
-+++ b/newlib/libc/posix/Makefile.am
-@@ -61,13 +61,27 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
- 
- .c.def:
- 	$(CHEW) < $< > $*.def 2> $*.ref
--	touch stmp-def
-+	@touch stmp-def
- 
-+CHAPTER = posix.tex
- TARGETDOC = ../tmp.texi
- 
--doc: $(CHEWOUT_FILES)
--	cat $(srcdir)/posix.tex >> $(TARGETDOC)
-+doc-texinfo: $(CHEWOUT_FILES)
-+	cat $(srcdir)/${CHAPTER} >> $(TARGETDOC)
-+
-+DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
-+DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
-+DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
-+
-+.c.xml:
-+	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
-+	@touch stmp-xml
-+
-+doc-docbook: $(DOCBOOK_OUT_FILES)
-+	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
-+
-+doc: doc-docbook doc-texinfo
- 
- AM_CFLAGS = -D_GNU_SOURCE
- 
--CLEANFILES = $(CHEWOUT_FILES) *.ref
-+CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
-diff --git a/newlib/libc/search/Makefile.am b/newlib/libc/search/Makefile.am
-index defb6bb..34248ee 100644
---- a/newlib/libc/search/Makefile.am
-+++ b/newlib/libc/search/Makefile.am
-@@ -62,7 +62,7 @@ lib_a_CFLAGS = $(AM_CFLAGS)
- noinst_DATA =
- endif # USE_LIBTOOL
- 
--SUFFIXES = .def
-+SUFFIXES = .def .xml
- 
- CHEWOUT_FILES = \
- 	bsearch.def \
-@@ -73,12 +73,23 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
- 
- .c.def:
- 	$(CHEW) < $< > $*.def 2> $*.ref
--	touch stmp-def
-+	@touch stmp-def
- 
- TARGETDOC = ../tmp.texi
- 
--doc: $(CHEWOUT_FILES)
-+doc-texinfo: $(CHEWOUT_FILES)
- 
--CLEANFILES = $(CHEWOUT_FILES) *.ref
-+DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
-+DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
-+
-+.c.xml:
-+	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
-+	@touch stmp-xml
-+
-+doc-docbook: $(DOCBOOK_OUT_FILES)
-+
-+doc: doc-docbook doc-texinfo
-+
-+CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
- 
- include $(srcdir)/../../Makefile.shared
-diff --git a/newlib/libc/signal/Makefile.am b/newlib/libc/signal/Makefile.am
-index 7a7e64c..04b2ccc 100644
---- a/newlib/libc/signal/Makefile.am
-+++ b/newlib/libc/signal/Makefile.am
-@@ -23,17 +23,31 @@ include $(srcdir)/../../Makefile.shared
- 
- CHEWOUT_FILES = psignal.def raise.def signal.def
- 
--SUFFIXES = .def
-+SUFFIXES = .def .xml
- 
- CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
- 
- .c.def:
- 	$(CHEW) < $< > $*.def 2> $*.ref
--	touch stmp-def
-+	@touch stmp-def
- 
-+CHAPTER = signal.tex
- TARGETDOC = ../tmp.texi
- 
--doc: $(CHEWOUT_FILES)
--	cat $(srcdir)/signal.tex >> $(TARGETDOC)
-+doc-texinfo: $(CHEWOUT_FILES)
-+	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
- 
--CLEANFILES = $(CHEWOUT_FILES) *.ref
-+DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
-+DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
-+DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
-+
-+.c.xml:
-+	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
-+	@touch stmp-xml
-+
-+doc-docbook: $(DOCBOOK_OUT_FILES)
-+	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
-+
-+doc: doc-docbook doc-texinfo
-+
-+CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
-diff --git a/newlib/libc/stdio/Makefile.am b/newlib/libc/stdio/Makefile.am
-index 0a086e7..c179272 100644
---- a/newlib/libc/stdio/Makefile.am
-+++ b/newlib/libc/stdio/Makefile.am
-@@ -421,20 +421,34 @@ CHEWOUT_FILES = \
- 	vfwprintf.def		\
- 	vfwscanf.def
- 
--SUFFIXES = .def
-+SUFFIXES = .def .xml
- 
- CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
- 
- .c.def:
- 	$(CHEW) < $< > $*.def 2> $*.ref
--	touch stmp-def
-+	@touch stmp-def
- 
-+CHAPTER = stdio.tex
- TARGETDOC = ../tmp.texi
- 
--doc: $(CHEWOUT_FILES)
--	cat $(srcdir)/stdio.tex >> $(TARGETDOC)
-+doc-texinfo: $(CHEWOUT_FILES)
-+	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
- 
--CLEANFILES = $(CHEWOUT_FILES) *.ref
-+DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
-+DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
-+DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
-+
-+.c.xml:
-+	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
-+	@touch stmp-xml
-+
-+doc-docbook: $(DOCBOOK_OUT_FILES)
-+	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
-+
-+doc: doc-docbook doc-texinfo
-+
-+CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
- 
- $(lpfx)clearerr.$(oext): local.h
- $(lpfx)clearerr_u.$(oext): local.h
-diff --git a/newlib/libc/stdio64/Makefile.am b/newlib/libc/stdio64/Makefile.am
-index 914cbca..b7cacfd 100644
---- a/newlib/libc/stdio64/Makefile.am
-+++ b/newlib/libc/stdio64/Makefile.am
-@@ -52,18 +52,31 @@ CHEWOUT_FILES = \
- 	ftello64.def		\
- 	tmpfile64.def
- 
--SUFFIXES = .def
-+SUFFIXES = .def .xml
- 
- CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
- 
- .c.def:
- 	$(CHEW) < $< > $*.def 2> $*.ref
--	touch stmp-def
-+	@touch stmp-def
- 
-+CHAPTER = stdio64.tex
- TARGETDOC = ../tmp.texi
- 
--doc: $(CHEWOUT_FILES)
--	cat $(srcdir)/stdio64.tex >> $(TARGETDOC)
-+doc-texinfo: $(CHEWOUT_FILES)
-+	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
- 
--CLEANFILES = $(CHEWOUT_FILES) *.ref
-+DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
-+DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
-+DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
- 
-+.c.xml:
-+	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
-+	@touch stmp-xml
-+
-+doc-docbook: $(DOCBOOK_OUT_FILES)
-+	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
-+
-+doc: doc-docbook doc-texinfo
-+
-+CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
-diff --git a/newlib/libc/stdlib/Makefile.am b/newlib/libc/stdlib/Makefile.am
-index ead5dd1..716202f 100644
---- a/newlib/libc/stdlib/Makefile.am
-+++ b/newlib/libc/stdlib/Makefile.am
-@@ -292,20 +292,34 @@ CHEWOUT_FILES= \
- 	wcstombs.def	\
- 	wctomb.def	
- 
--SUFFIXES = .def
-+SUFFIXES = .def .xml
- 
- CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
- 
- .c.def:
- 	$(CHEW) < $< > $*.def 2> $*.ref
--	touch stmp-def
-+	@touch stmp-def
- 
-+CHAPTER = stdlib.tex
- TARGETDOC = ../tmp.texi
- 
--doc: $(CHEWOUT_FILES)
--	cat $(srcdir)/stdlib.tex >> $(TARGETDOC)
-+doc-texinfo: $(CHEWOUT_FILES)
-+	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
- 
--CLEANFILES = $(CHEWOUT_FILES) *.ref
-+DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
-+DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
-+DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
-+
-+.c.xml:
-+	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
-+	@touch stmp-xml
-+
-+doc-docbook: $(DOCBOOK_OUT_FILES)
-+	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
-+
-+doc: doc-docbook doc-texinfo
-+
-+CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
- 
- $(lpfx)dtoa.$(oext): dtoa.c mprec.h
- $(lpfx)ldtoa.$(oext): ldtoa.c mprec.h
-diff --git a/newlib/libc/string/Makefile.am b/newlib/libc/string/Makefile.am
-index ba49af8..fc4602f 100644
---- a/newlib/libc/string/Makefile.am
-+++ b/newlib/libc/string/Makefile.am
-@@ -145,18 +145,31 @@ wcswidth.def	wcsxfrm.def	wcwidth.def	wmemchr.def \
- wmemcmp.def	wmemcpy.def	wmemmove.def	wmemset.def \
- memmem.def	memrchr.def	rawmemchr.def	strchrnul.def
- 
--SUFFIXES = .def
-+SUFFIXES = .def .xml
- 
- CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
- 
- .c.def:
- 	$(CHEW) < $< > $*.def 2> $*.ref
--	touch stmp-def
-+	@touch stmp-def
- 
- TARGETDOC = ../tmp.texi
- 
--doc: $(CHEWOUT_FILES)
-+doc-texinfo: $(CHEWOUT_FILES)
- 	cat $(srcdir)/strings.tex >> $(TARGETDOC)
- 	cat $(srcdir)/wcstrings.tex >> $(TARGETDOC)
- 
--CLEANFILES = $(CHEWOUT_FILES) *.ref
-+DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
-+DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
-+
-+.c.xml:
-+	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
-+	@touch stmp-xml
-+
-+doc-docbook: $(DOCBOOK_OUT_FILES)
-+	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/strings.tex >../strings.xml
-+	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/wcstrings.tex >../wcstrings.xml
-+
-+doc: doc-docbook doc-texinfo
-+
-+CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
-diff --git a/newlib/libc/time/Makefile.am b/newlib/libc/time/Makefile.am
-index 95f088a..39d47bf 100644
---- a/newlib/libc/time/Makefile.am
-+++ b/newlib/libc/time/Makefile.am
-@@ -60,17 +60,31 @@ CHEWOUT_FILES = \
- 	tzset.def	\
- 	wcsftime.def
- 
--SUFFIXES = .def
-+SUFFIXES = .def .xml
- 
- CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
- 
- .c.def:
- 	$(CHEW) < $< > $*.def 2> $*.ref
--	touch stmp-def
-+	@touch stmp-def
- 
-+CHAPTER = time.tex
- TARGETDOC = ../tmp.texi
- 
--doc: $(CHEWOUT_FILES)
--	cat $(srcdir)/time.tex >> $(TARGETDOC)
-+doc-texinfo: $(CHEWOUT_FILES)
-+	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
- 
--CLEANFILES = $(CHEWOUT_FILES) *.ref
-+DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
-+DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
-+DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
-+
-+.c.xml:
-+	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
-+	@touch stmp-xml
-+
-+doc-docbook: $(DOCBOOK_OUT_FILES)
-+	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
-+
-+doc: doc-docbook doc-texinfo
-+
-+CLEANFILES = $(CHEWOUT_FILES) *.ref  $(DOCBOOK_OUT_FILES)
 diff --git a/newlib/libm/Makefile.am b/newlib/libm/Makefile.am
 index bc45816..9d03dc2 100644
 --- a/newlib/libm/Makefile.am
@@ -1577,88 +1193,12 @@ index bc45816..9d03dc2 100644
  
  ACLOCAL_AMFLAGS = -I .. -I ../..
  CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
-diff --git a/newlib/libm/common/Makefile.am b/newlib/libm/common/Makefile.am
-index d5e0ef9..6c868d5 100644
---- a/newlib/libm/common/Makefile.am
-+++ b/newlib/libm/common/Makefile.am
-@@ -69,13 +69,24 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
- 
- .c.def:
- 	$(CHEW) < $< > $*.def 2> $*.ref
--	touch stmp-def
-+	@touch stmp-def
- 
- TARGETDOC = ../tmp.texi
- 
--doc: $(chobj)
-+doc-texinfo: $(chobj)
- 
--CLEANFILES = $(chobj) *.ref
-+DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
-+DOCBOOK_OUT_FILES = $(chobj:.def=.xml)
-+
-+.c.xml:
-+	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
-+	@touch stmp-xml
-+
-+doc-docbook: $(DOCBOOK_OUT_FILES)
-+
-+doc: doc-docbook doc-texinfo
-+
-+CLEANFILES = $(chobj) *.ref $(DOCBOOK_OUT_FILES)
- 
- # A partial dependency list.
- 
-diff --git a/newlib/libm/complex/Makefile.am b/newlib/libm/complex/Makefile.am
-index 1c4a502..f66e45e 100644
---- a/newlib/libm/complex/Makefile.am
-+++ b/newlib/libm/complex/Makefile.am
-@@ -40,20 +40,34 @@ chobj =	cabs.def cacos.def cacosh.def carg.def \
-         csin.def csinh.def csqrt.def ctan.def ctanh.def
- 
- 
--SUFFIXES = .def
-+SUFFIXES = .def .xml
- 
- CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
- 
- .c.def:
- 	$(CHEW) < $< > $*.def 2> $*.ref
--	touch stmp-def
-+	@touch stmp-def
- 
-+CHAPTER = complex.tex
- TARGETDOC = ../tmp.texi
- 
--doc: $(chobj)
--	cat $(srcdir)/complex.tex >> $(TARGETDOC)
-+doc-texinfo: $(chobj)
-+	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
- 
--CLEANFILES = $(chobj) *.ref
-+DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
-+DOCBOOK_OUT_FILES = $(chobj:.def=.xml)
-+DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
-+
-+.c.xml:
-+	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
-+	@touch stmp-xml
-+
-+doc-docbook: $(DOCBOOK_OUT_FILES)
-+	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
-+
-+doc: doc-docbook doc-texinfo
-+
-+CLEANFILES = $(chobj) *.ref $(DOCBOOK_OUT_FILES)
- 
- # A partial dependency list.
- 
 diff --git a/newlib/libm/libm.in.xml b/newlib/libm/libm.in.xml
 new file mode 100644
-index 0000000..c0e0506
+index 0000000..46606c3
 --- /dev/null
 +++ b/newlib/libm/libm.in.xml
-@@ -0,0 +1,11 @@
+@@ -0,0 +1,15 @@
 +<?xml version="1.0" encoding="UTF-8"?>
 +<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
 +<book id="libm" xmlns:xi="http://www.w3.org/2001/XInclude">
@@ -1669,81 +1209,11 @@ index 0000000..c0e0506
 +  <!-- XXX: also should put the rest of the content from libm.texinfo here, but I don't need it for just generating manpages -->
 +  <xi:include href="complex.xml"/>
 +  <xi:include href="math.xml"/>
++
++  <!-- processing should insert index here -->
++  <index/>
++
 +</book>
-diff --git a/newlib/libm/math/Makefile.am b/newlib/libm/math/Makefile.am
-index 2616ada..c8fb416 100644
---- a/newlib/libm/math/Makefile.am
-+++ b/newlib/libm/math/Makefile.am
-@@ -82,14 +82,28 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
- 
- .c.def:
- 	$(CHEW) < $< > $*.def 2> $*.ref
--	touch stmp-def
-+	@touch stmp-def
- 
-+CHAPTER = math.tex
- TARGETDOC = ../tmp.texi
- 
--doc: $(chobj)
--	cat $(srcdir)/math.tex >> $(TARGETDOC)
-+doc-texinfo: $(chobj)
-+	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
- 
--CLEANFILES = $(chobj) *.ref
-+DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
-+DOCBOOK_OUT_FILES = $(chobj:.def=.xml)
-+DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
-+
-+.c.xml:
-+	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
-+	@touch stmp-xml
-+
-+doc-docbook: $(DOCBOOK_OUT_FILES)
-+	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
-+
-+doc: doc-docbook doc-texinfo
-+
-+CLEANFILES = $(chobj) *.ref $(DOCBOOK_OUT_FILES)
- 
- # A partial dependency list.
- 
-diff --git a/newlib/libm/mathfp/Makefile.am b/newlib/libm/mathfp/Makefile.am
-index 0caab07..65a5e27 100644
---- a/newlib/libm/mathfp/Makefile.am
-+++ b/newlib/libm/mathfp/Makefile.am
-@@ -93,14 +93,28 @@ CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
- 
- .c.def:
- 	$(CHEW) < $< > $*.def 2> $*.ref
--	touch stmp-def
-+	@touch stmp-def
- 
-+CHAPTER = mathfp.tex
- TARGETDOC = ../tmp.texi
- 
--doc: $(chobj)
--	cat $(srcdir)/mathfp.tex >> $(TARGETDOC)
-+doc-texinfo: $(chobj)
-+	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
- 
--CLEANFILES = $(chobj) *.ref
-+DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
-+DOCBOOK_OUT_FILES = $(chobj:.def=.xml)
-+DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
-+
-+.c.xml:
-+	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
-+	@touch stmp-xml
-+
-+doc-docbook: $(DOCBOOK_OUT_FILES)
-+	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
-+
-+doc: doc-docbook doc-texinfo
-+
-+CLEANFILES = $(chobj) *.ref $(DOCBOOK_OUT_FILES)
- 
- # A partial dependency list.
- 
 diff --git a/newlib/man.xsl b/newlib/man.xsl
 new file mode 100644
 index 0000000..a0e2736

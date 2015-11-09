@@ -1,17 +1,39 @@
-From 0421e65a277393ab5fc142853e599fe1290b0e6a Mon Sep 17 00:00:00 2001
+From a766f5cbe5e34b463a631464c44b3d44b6832f4e Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Sat, 18 Jul 2015 18:35:09 +0100
-Subject: [PATCH 5/8] Hand-convert syscalls chapter
+Subject: [PATCH 05/13] Hand-convert syscalls chapter
 
-Signed-off-by: Jon Turney <jon.turney@dronecode.org.uk>
+Include generated documentation for reent syscalls
+
+v2:
+Copy hand-written syscalls.xml to build directory to deal with xi:include's
+relative include behaviour
+Fix anchor and xrefs
 ---
- newlib/libc/libc.in.xml  |   1 +
- newlib/libc/syscalls.xml | 392 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 393 insertions(+)
- create mode 100644 newlib/libc/syscalls.xml
+ newlib/Makefile.shared            |   4 +
+ newlib/libc/libc.in.xml           |   1 +
+ newlib/libc/syscalls/Makefile.am  |   3 +-
+ newlib/libc/syscalls/syscalls.xml | 405 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 412 insertions(+), 1 deletion(-)
+ create mode 100644 newlib/libc/syscalls/syscalls.xml
 
+diff --git a/newlib/Makefile.shared b/newlib/Makefile.shared
+index c563efd..e9d1a91 100644
+--- a/newlib/Makefile.shared
++++ b/newlib/Makefile.shared
+@@ -38,6 +38,10 @@ doc-docbook: $(DOCBOOK_OUT_FILES)
+ 	do \
+ 	  ${top_srcdir}/../doc/chapter-texi2docbook.py <$(srcdir)/$${chapter%.xml}.tex >../$$chapter ; \
+ 	done
++	for chapter in $(DOCBOOK_STATIC_CHAPTERS) ; \
++	do \
++	  cp ${srcdir}/$${chapter} ../ ; \
++	done
+ 
+ doc: doc-docbook doc-texinfo
+ 
 diff --git a/newlib/libc/libc.in.xml b/newlib/libc/libc.in.xml
-index 74c7359..f83f6ab 100644
+index b0773f8..5d455fd 100644
 --- a/newlib/libc/libc.in.xml
 +++ b/newlib/libc/libc.in.xml
 @@ -131,6 +131,7 @@
@@ -22,15 +44,26 @@ index 74c7359..f83f6ab 100644
  
    <!-- stdarg.h and vararg.h are directly described in libc.texinfo, so provide equivalent refentries -->
    <chapter id="arglists">
-diff --git a/newlib/libc/syscalls.xml b/newlib/libc/syscalls.xml
+diff --git a/newlib/libc/syscalls/Makefile.am b/newlib/libc/syscalls/Makefile.am
+index 31cf659..b92ac06 100644
+--- a/newlib/libc/syscalls/Makefile.am
++++ b/newlib/libc/syscalls/Makefile.am
+@@ -54,4 +54,5 @@ include $(srcdir)/../../Makefile.shared
+ 
+ CHEWOUT_FILES =
+ CHAPTERS =
+-# No doc for syscalls.
++# No generated doc for syscalls.
++DOCBOOK_STATIC_CHAPTERS = syscalls.xml
+diff --git a/newlib/libc/syscalls/syscalls.xml b/newlib/libc/syscalls/syscalls.xml
 new file mode 100644
-index 0000000..fae1451
+index 0000000..2f36b1d
 --- /dev/null
-+++ b/newlib/libc/syscalls.xml
-@@ -0,0 +1,392 @@
++++ b/newlib/libc/syscalls/syscalls.xml
+@@ -0,0 +1,405 @@
 +<?xml version="1.0" encoding="UTF-8"?>
 +<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
-+<chapter id="syscalls">
++<chapter id="syscalls" xmlns:xi="http://www.w3.org/2001/XInclude">
 +  <title>System Calls</title>
 +  <para>
 +    <indexterm><primary>linking the C library</primary></indexterm>
@@ -47,7 +80,7 @@ index 0000000..fae1451
 +    link with the subroutines in <code>libc.a</code>.
 +  </para>
 +
-+  <section>
++  <section id="Stubs">
 +    <title>Definitions for OS interface</title>
 +    <indexterm><primary>Stubs</primary></indexterm>
 +    <indexterm><primary>subroutines for OS interface</primary></indexterm>
@@ -66,7 +99,7 @@ index 0000000..fae1451
 +      <code>errno</code>.  However, the Red Hat newlib C library provides a
 +      <emphasis>macro</emphasis> definition for <code>errno</code> in the header
 +      file <filename>errno.h</filename>, as part of its support for reentrant
-+      routines (@pxref{Reentrancy,,Reentrancy}).
++      routines (see <xref linkend='reentrancy'/>).
 +    </para>
 +    <para>
 +      <indexterm><primary><code>errno</code> global vs
@@ -414,10 +447,23 @@ index 0000000..fae1451
 +      (for example, the reentrant version of <code>fork</code> is
 +      <code>_fork_r</code>).  These cover routines are consistent with the other
 +      reentrant subroutines in this library, and achieve reentrancy by using a
-+      reserved global data block (@pxref{Reentrancy,,Reentrancy}).
++      reserved global data block (see <xref linkend='reentrancy'/>).
 +    </para>
 +
-+    <!-- include stuff from reent/ ??? -->
++    <xi:include href="./reent/closer.xml"/>
++    <xi:include href="./reent/execr.xml"/>
++    <xi:include href="./reent/fstatr.xml"/>
++    <xi:include href="./reent/linkr.xml"/>
++    <xi:include href="./reent/lseekr.xml"/>
++    <xi:include href="./reent/openr.xml"/>
++    <xi:include href="./reent/readr.xml"/>
++    <xi:include href="./reent/sbrkr.xml"/>
++    <xi:include href="./reent/signalr.xml"/>
++    <xi:include href="./reent/statr.xml"/>
++    <xi:include href="./reent/timesr.xml"/>
++    <xi:include href="./reent/unlinkr.xml"/>
++    <xi:include href="./reent/writer.xml"/>
++
 +  </section>
 +</chapter>
 -- 

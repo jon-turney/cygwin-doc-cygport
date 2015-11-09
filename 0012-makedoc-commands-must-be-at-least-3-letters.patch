@@ -1,0 +1,29 @@
+From ba3bd72f77eda75eb1a78d61d51cb1efa36e69a2 Mon Sep 17 00:00:00 2001
+From: Jon Turney <jon.turney@dronecode.org.uk>
+Date: Mon, 9 Nov 2015 16:59:00 +0000
+Subject: [PATCH 12/13] makedoc commands must be at least 3 letters
+
+This is to avoid 'L' all alone on a line being interpreted as a command
+---
+ newlib/doc/makedocbook.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/newlib/doc/makedocbook.py b/newlib/doc/makedocbook.py
+index c6ccf40..2d6a4b8 100755
+--- a/newlib/doc/makedocbook.py
++++ b/newlib/doc/makedocbook.py
+@@ -103,9 +103,9 @@ def remove_noncomments(src):
+ # Stage 2
+ #
+ 
+-# A command is a single word, all uppercase, and alone on a line
++# A command is a single word of at least 3 characters, all uppercase, and alone on a line
+ def iscommand(l):
+-    if re.match('^[A-Z_]+\s*$', l):
++    if re.match('^[A-Z_]{3,}\s*$', l):
+ 
+ 	return True
+     return False
+-- 
+2.5.3
+

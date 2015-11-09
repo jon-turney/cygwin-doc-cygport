@@ -1,15 +1,16 @@
-From f099f6b52b95d1493e1d9b7e3330a15ae3b6a35f Mon Sep 17 00:00:00 2001
+From 94c20ffcafe79e452ab532c441fa8642d5769466 Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Sat, 18 Jul 2015 18:34:46 +0100
-Subject: [PATCH 4/8] Hand-convert libc introduction to DocBook XML
+Subject: [PATCH 04/13] Hand-convert libc introduction
 
-Signed-off-by: Jon Turney <jon.turney@dronecode.org.uk>
+v2:
+Fix xref
 ---
  newlib/libc/libc.in.xml | 103 +++++++++++++++++++++++++++++++++++++++++++++++-
  1 file changed, 102 insertions(+), 1 deletion(-)
 
 diff --git a/newlib/libc/libc.in.xml b/newlib/libc/libc.in.xml
-index efe96bd..74c7359 100644
+index efe96bd..b0773f8 100644
 --- a/newlib/libc/libc.in.xml
 +++ b/newlib/libc/libc.in.xml
 @@ -3,9 +3,110 @@
@@ -116,8 +117,8 @@ index efe96bd..74c7359 100644
 +      may not be available or may not be fully functional.  The specific
 +      operating system subroutines required for a particular library function
 +      are listed in the <quote>Portability</quote> section of the function
-+      description.  @xref{Syscalls}, for a description of the relevant operating
-+      system calls.
++      description.  See <xref linkend="syscalls"/>, for a description of the
++      relevant operating system calls.
 +    </para>
 +  </preface>
 +

@@ -1,5 +1,5 @@
 NAME="cygwin-doc"
-VERSION="2.2.1"
+VERSION="2.3.0"
 RELEASE="1"
 HOMEPAGE="https://cygwin.com/"
 
@@ -33,15 +33,18 @@ PATCH_URI="
 0001-Make-newlib-manpages-via-DocBook-XML.patch
 0002-Hand-convert-refentries-for-stdarg.h-and-varargs.h.patch
 0003-Tools-for-auditing-for-unprocessed-not-included-but-.patch
-0004-Hand-convert-libc-introduction-to-DocBook-XML.patch
+0004-Hand-convert-libc-introduction.patch
 0005-Hand-convert-syscalls-chapter.patch
 0006-Include-generated-reent-documentation.patch
-0007-Add-reent-syscalls.patch
-0008-Add-hand-converted-iconv-chapter-and-generated-iconv.patch
-0009-Regenerate-Makefile.in-files.patch
+0007-Hand-convert-iconv-chapter.patch
+0008-Fix-some-incorrect-QUICKREF-lines.patch
+0009-makedocbook-doesn-t-need-to-handle-QUICKREF-command-.patch
+0010-Plumb-in-top-level-doc-target.patch
+0011-Simplify-the-markup-for-sprintf-sscanf-documentation.patch
+0012-makedoc-commands-must-be-at-least-3-letters.patch
+0013-Teach-makedocbook-to-understand-texinfo-multitable.patch
+0014-Regenerate-Makefile.in-files.patch
 "
-
-SRC_URI+="handwritten.patch"
 
 src_compile() {
   # make sure scripts added by patches are executable
@@ -53,16 +56,8 @@ src_compile() {
   cygconf
   cygmake
 
-  # XXX: need to plumb these in correctly to top-level targets
-
-  # make newlib makedoc
-  cd ${B}/${CHOST}/newlib/doc
-  cygmake -j1
-  # make newlib libc info and DocBook
-  cd ${B}/${CHOST}/newlib/libc
-  cygmake -j1 doc
-  # make newlib libm info and DocBook
-  cd ${B}/${CHOST}/newlib/libm
+  # make newlib makedoc tool, info and DocBook documentation
+  cd ${B}/${CHOST}/newlib
   cygmake -j1 doc
 }
 
@@ -73,11 +68,6 @@ src_install() {
   cygmake -j1 install-data-local DESTDIR=${D}
   cd ${B}/${CHOST}/newlib/libm
   cygmake -j1 install-data-local DESTDIR=${D}
-
-  # workaround for https://sourceforge.net/p/docbook/bugs/1362/
-  # fixup the manpages which contain nested tables with some handwritten groff
-  cd ${D}
-  patch -p1 -v never <${S}/handwritten.patch || error "failed to apply manpage fixup patch"
 
   docinto /newlib
   dodoc ${S}/COPYING.NEWLIB ${S}/newlib/HOWTO ${S}/newlib/NEWS ${S}/newlib/README

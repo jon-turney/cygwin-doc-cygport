@@ -1,0 +1,81 @@
+From 767689108c3f61b4a661d276e0cd7a1c7459c2e9 Mon Sep 17 00:00:00 2001
+From: Jon Turney <jon.turney@dronecode.org.uk>
+Date: Mon, 9 Nov 2015 15:58:55 +0000
+Subject: [PATCH 13/13] Teach makedocbook to understand texinfo @multitable
+
+---
+ newlib/doc/makedocbook.py | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)
+
+diff --git a/newlib/doc/makedocbook.py b/newlib/doc/makedocbook.py
+index 2d6a4b8..1b4f5ab 100755
+--- a/newlib/doc/makedocbook.py
++++ b/newlib/doc/makedocbook.py
+@@ -495,6 +495,11 @@ texinfo_commands = {
+     'end tex' : 'ENDIFTEX',
+     'comment' : 'COMMENT',
+     'c ' : 'COMMENT',
++    'multitable' : 'MULTICOLUMNTABLE',
++    'end multitable' : 'ENDMULTICOLUMNTABLE',
++    'headitem' : 'MCT_HEADITEM',
++    'tab' : 'MCT_COLUMN_SEPARATOR',
++    'item' : 'MCT_ITEM',
+     }
+ 
+ # token names
+@@ -719,6 +724,7 @@ def p_table(p):
+ def p_texinfocmd(p):
+     '''texinfocmd : unknown_texinfocmd
+                   | comment
++                  | multitable
+                   | nottex
+                   | tex'''
+     p[0] = p[1]
+@@ -743,6 +749,44 @@ def p_comment(p):
+     # comment text is discarded
+     p[0] = ''
+ 
++def p_mct_columns(p):
++    '''mct_columns : maybe_lines
++                   | maybe_lines MCT_COLUMN_SEPARATOR mct_columns'''
++    if len(p) == 4:
++	p[0] = '<entry>' + p[1] + '</entry>' + p[3]
++    else:
++	p[0] = '<entry>' + p[1] + '</entry>'
++    parser_verbose(p)
++
++def p_mct_row(p):
++    '''mct_row : MCT_ITEM mct_columns'''
++    p[0] = '<row>' + p[2] + '</row>'
++    parser_verbose(p)
++
++def p_mct_rows(p):
++    '''mct_rows : mct_row
++                | mct_row mct_rows'''
++    if len(p) == 3:
++	p[0] = p[1] + '\n' + p[2]
++    else:
++	p[0] = p[1]
++    parser_verbose(p)
++
++def p_mct_header(p):
++    '''mct_header : MCT_HEADITEM mct_columns'''
++    p[0] = '<row>' + p[2] + '</row>'
++    parser_verbose(p)
++
++def p_multitable(p):
++    '''multitable : MULTICOLUMNTABLE mct_header mct_rows ENDMULTICOLUMNTABLE'''
++    # this doesn't handle the prototype row form of @multitable, only the @columnfractions form
++    colfrac = p[1].replace('@multitable @columnfractions', '').split()
++    colspec = '\n'.join(['<colspec colwidth="%s*"/>' % (c) for c in colfrac])
++    header = '<thead>' + p[2] + '</thead>\n'
++    body = '<tbody>' + p[3] + '</tbody>\n'
++    p[0] = '<informaltable><tgroup cols="' + str(len(colfrac)) +'">' + colspec + header + body  + '</tgroup></informaltable>'
++    parser_verbose(p)
++
+ def p_error(t):
+     print('parse error at line %d, token %s, next token %s' % (t.lineno, t, parser.token()), file=sys.stderr)
+     exit(1)
+-- 
+2.5.3
+

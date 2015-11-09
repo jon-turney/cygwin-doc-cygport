@@ -1,42 +1,42 @@
-From 9dae849bd7fc86e38f8112a4f635cec98a5fe394 Mon Sep 17 00:00:00 2001
+From 127cfe2706fff64e746055be14ffc91114e67e97 Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Sat, 24 Oct 2015 18:18:00 +0100
-Subject: [PATCH 8/8] Add hand-converted iconv chapter and generated iconv
- function documentation
+Subject: [PATCH 07/13] Hand-convert iconv chapter
 
-Signed-off-by: Jon Turney <jon.turney@dronecode.org.uk>
+Includes generated iconv function documentation
+
+Configure with --enable-newlib-iconv to test
+
+v2:
+Revert promoting the generated iconv.xml from iconv/lib/ like iconv.def, since
+it's included by the handwritten iconv.xml
 ---
- newlib/libc/iconv/Makefile.am     |   13 +-
- newlib/libc/iconv/iconv.xml       | 1780 +++++++++++++++++++++++++++++++++++++
- newlib/libc/iconv/lib/Makefile.am |   18 +-
- 3 files changed, 1804 insertions(+), 7 deletions(-)
+ newlib/libc/iconv/Makefile.am |    6 +-
+ newlib/libc/iconv/iconv.xml   | 1780 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 1782 insertions(+), 4 deletions(-)
  create mode 100644 newlib/libc/iconv/iconv.xml
 
 diff --git a/newlib/libc/iconv/Makefile.am b/newlib/libc/iconv/Makefile.am
-index 561f03e..9b06a42 100644
+index c419924..2b45f66 100644
 --- a/newlib/libc/iconv/Makefile.am
 +++ b/newlib/libc/iconv/Makefile.am
-@@ -30,10 +30,17 @@ lib/iconv.def: $(SUBDEFS); @true
+@@ -13,14 +13,12 @@ SUBDEFS = lib/stmp-def
+ include $(srcdir)/../../Makefile.shared
  
- lib/stmp-def: ; @true
+ CHEWOUT_FILES = iconv.def
+-CHAPTERS = iconv.tex
++CHAPTERS =
++DOCBOOK_STATIC_CHAPTERS = iconv.xml
  
-+CHAPTER = iconv.tex
- TARGETDOC = ../tmp.texi
+ iconv.def: lib/iconv.def
+ 	cp lib/iconv.def iconv.def
  
--doc: $(CHEWOUT_FILES)
--	cat $(srcdir)/iconv.tex >> $(TARGETDOC)
-+doc-texinfo: $(CHEWOUT_FILES)
-+	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
- 
--CLEANFILES = $(CHEWOUT_FILES) *.ref
-+DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
-+
-+doc-docbook:
-+	cp $(srcdir)/$(DOCBOOK_CHAPTER) ../$(DOCBOOK_CHAPTER)
- 
-+doc: doc-docbook doc-texinfo
-+
-+CLEANFILES = $(CHEWOUT_FILES) *.ref
+-iconv.xml: lib/iconv.xml
+-	cp lib/iconv.xml iconv.xml
+-
+ stmp-def: force
+ 	(cd lib && $(MAKE) doc)
+ 	touch $@
 diff --git a/newlib/libc/iconv/iconv.xml b/newlib/libc/iconv/iconv.xml
 new file mode 100644
 index 0000000..2ef69c0
@@ -1823,40 +1823,6 @@ index 0000000..2ef69c0
 +  </para>
 +</section>
 +</chapter>
-diff --git a/newlib/libc/iconv/lib/Makefile.am b/newlib/libc/iconv/lib/Makefile.am
-index d8fd528..d4297bf 100644
---- a/newlib/libc/iconv/lib/Makefile.am
-+++ b/newlib/libc/iconv/lib/Makefile.am
-@@ -35,15 +35,25 @@ include $(srcdir)/../../../Makefile.shared
- 
- CHEWOUT_FILES = iconv.def
- 
--SUFFIXES = .def
-+SUFFIXES = .def .xml
- 
- CHEW = ../../../doc/makedoc -f $(srcdir)/../../../doc/doc.str
- 
- .c.def:
- 	$(CHEW) < $< > $*.def 2> $*.ref
--	touch stmp-def
-+	@touch stmp-def
- 
--doc: $(CHEWOUT_FILES)
-+DOCBOOK_CHEW = ${srcdir}/../../../doc/makedocbook.py
-+DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
- 
--CLEANFILES = $(CHEWOUT_FILES) *.ref
-+.c.xml:
-+	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
-+	@touch stmp-xml
-+
-+doc-texinfo: $(CHEWOUT_FILES)
-+
-+doc-docbook: $(DOCBOOK_OUT_FILES)
- 
-+doc: doc-docbook doc-texinfo
-+
-+CLEANFILES = $(CHEWOUT_FILES) *.ref
 -- 
 2.5.3
 

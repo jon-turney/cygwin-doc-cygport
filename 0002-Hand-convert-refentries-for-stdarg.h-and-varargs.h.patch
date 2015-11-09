@@ -1,12 +1,10 @@
-From 72ad05b6088b40fca54f80d76f73f6d408357a12 Mon Sep 17 00:00:00 2001
+From 0ff79de84fc61198c711c9a42c13fefefe59c2df Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Wed, 24 Jun 2015 17:21:50 +0100
-Subject: [PATCH 2/8] Hand-convert refentries for stdarg.h and varargs.h
+Subject: [PATCH 02/13] Hand-convert refentries for stdarg.h and varargs.h
 
 v2
 Structure as chapter, not reference
-
-Signed-off-by: Jon Turney <jon.turney@dronecode.org.uk>
 ---
  newlib/libc/libc.in.xml  | 380 ++++++++++++++++++++++++++++++++++++++++++++++-
  newlib/libc/libc.texinfo |   2 +-

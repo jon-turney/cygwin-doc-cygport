@@ -1,0 +1,44 @@
+From 8c798399861e4c1d3ca879884ffdb1f6d5944ad8 Mon Sep 17 00:00:00 2001
+From: Jon Turney <jon.turney@dronecode.org.uk>
+Date: Mon, 26 Oct 2015 21:09:45 +0000
+Subject: [PATCH 10/13] Plumb in top-level doc target
+
+XXX: needs build avoidance
+---
+ newlib/Makefile.am     | 9 +++++++++
+ newlib/doc/Makefile.am | 2 ++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/newlib/Makefile.am b/newlib/Makefile.am
+index 5ecce4c..8424480 100644
+--- a/newlib/Makefile.am
++++ b/newlib/Makefile.am
+@@ -347,6 +347,15 @@ dvi-recursive: doc/makedoc
+ doc/makedoc:
+ 	cd doc && $(MAKE) all
+ 
++doc: doc/makedoc
++	for d in $(SUBDIRS); do \
++	  if test "$$d" != "."; then \
++	    (cd $$d && $(MAKE) doc) || exit 1; \
++	  fi; \
++	done
++
++.PHONY: doc
++
+ CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
+ 
+ # Multilib support.
+diff --git a/newlib/doc/Makefile.am b/newlib/doc/Makefile.am
+index c863007..8e21be6 100644
+--- a/newlib/doc/Makefile.am
++++ b/newlib/doc/Makefile.am
+@@ -19,3 +19,5 @@ makedoc.o: makedoc.c
+ 
+ ACLOCAL_AMFLAGS = -I .. -I ../..
+ CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
++
++doc:
+-- 
+2.5.3
+

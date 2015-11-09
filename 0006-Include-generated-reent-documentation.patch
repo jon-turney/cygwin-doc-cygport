@@ -1,17 +1,15 @@
-From 218e4f2f0b2699a6628d31e59e99e00be93be820 Mon Sep 17 00:00:00 2001
+From e70b472eded567bb4b0d97076a6cc142b7b61fb8 Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Sat, 18 Jul 2015 18:43:15 +0100
-Subject: [PATCH 6/8] Include generated reent documentation
+Subject: [PATCH 06/13] Include generated reent documentation
 
-Signed-off-by: Jon Turney <jon.turney@dronecode.org.uk>
 ---
- newlib/libc/libc.in.xml       |  1 +
- newlib/libc/reent/Makefile.am | 24 +++++++++++++++++++-----
- newlib/libc/reent/reent.tex   |  4 ++--
- 3 files changed, 22 insertions(+), 7 deletions(-)
+ newlib/libc/libc.in.xml     | 1 +
+ newlib/libc/reent/reent.tex | 4 ++--
+ 2 files changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/newlib/libc/libc.in.xml b/newlib/libc/libc.in.xml
-index f83f6ab..885d3b9 100644
+index 5d455fd..49d7a8d 100644
 --- a/newlib/libc/libc.in.xml
 +++ b/newlib/libc/libc.in.xml
 @@ -125,6 +125,7 @@
@@ -22,49 +20,6 @@ index f83f6ab..885d3b9 100644
  
    <xi:include href="misc.xml"/>
    <!-- posix is optional -->
-diff --git a/newlib/libc/reent/Makefile.am b/newlib/libc/reent/Makefile.am
-index 9e0602d..42d65a1 100644
---- a/newlib/libc/reent/Makefile.am
-+++ b/newlib/libc/reent/Makefile.am
-@@ -90,19 +90,33 @@ CHEWOUT_FILES = \
- 	$(STDIO64_DEFS) \
- 	writer.def
- 
--SUFFIXES = .def .h
-+SUFFIXES = .def .xml .h
- 
- CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
- 
- .c.def:
- 	$(CHEW) < $< > $*.def 2> $*.ref
--	touch stmp-def
-+	@touch stmp-def
- 
-+CHAPTER = reent.tex
- TARGETDOC = ../tmp.texi
- 
--doc: $(CHEWOUT_FILES)
--	cat $(srcdir)/reent.tex >> $(TARGETDOC)
-+doc-texinfo: $(CHEWOUT_FILES)
-+	cat $(srcdir)/$(CHAPTER) >> $(TARGETDOC)
-+
-+DOCBOOK_CHEW = ${srcdir}/../../doc/makedocbook.py
-+DOCBOOK_OUT_FILES = $(CHEWOUT_FILES:.def=.xml)
-+DOCBOOK_CHAPTER = ${CHAPTER:.tex=.xml}
-+
-+.c.xml:
-+	$(DOCBOOK_CHEW) < $< > $*.xml || ( rm $*.xml && false )
-+	@touch stmp-xml
-+
-+doc-docbook: $(DOCBOOK_OUT_FILES)
-+	${srcdir}/../../doc/chapter-texi2docbook.py <$(srcdir)/${CHAPTER} >../${DOCBOOK_CHAPTER}
-+
-+doc: doc-docbook doc-texinfo
- 
- $(lpfx)impure.$(oext): $(srcdir)/impure.c $(srcdir)/../include/sys/reent.h
- 
--CLEANFILES = $(CHEWOUT_FILES) *.ref
-+CLEANFILES = $(CHEWOUT_FILES) *.ref $(DOCBOOK_OUT_FILES)
 diff --git a/newlib/libc/reent/reent.tex b/newlib/libc/reent/reent.tex
 index 881c572..12597be 100644
 --- a/newlib/libc/reent/reent.tex
