@@ -1,7 +1,7 @@
-From a766f5cbe5e34b463a631464c44b3d44b6832f4e Mon Sep 17 00:00:00 2001
+From ccd76bcafb0ae7a79d0e332940b0e6af09a4befd Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Sat, 18 Jul 2015 18:35:09 +0100
-Subject: [PATCH 05/13] Hand-convert syscalls chapter
+Subject: [PATCH 6/9] Hand-convert syscalls chapter
 
 Include generated documentation for reent syscalls
 
@@ -33,10 +33,10 @@ index c563efd..e9d1a91 100644
  doc: doc-docbook doc-texinfo
  
 diff --git a/newlib/libc/libc.in.xml b/newlib/libc/libc.in.xml
-index b0773f8..5d455fd 100644
+index 3dcb82f..49d7a8d 100644
 --- a/newlib/libc/libc.in.xml
 +++ b/newlib/libc/libc.in.xml
-@@ -131,6 +131,7 @@
+@@ -132,6 +132,7 @@
    <xi:include href="posix.xml">
        <xi:fallback/>
    </xi:include>
@@ -467,5 +467,5 @@ index 0000000..2f36b1d
 +  </section>
 +</chapter>
 -- 
-2.5.3
+2.6.2
 

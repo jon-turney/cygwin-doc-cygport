@@ -1,7 +1,7 @@
-From 8c798399861e4c1d3ca879884ffdb1f6d5944ad8 Mon Sep 17 00:00:00 2001
+From 750a99a281ddd87460f967343cbc6f58462528f9 Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Mon, 26 Oct 2015 21:09:45 +0000
-Subject: [PATCH 10/13] Plumb in top-level doc target
+Subject: [PATCH 3/9] Plumb in top-level doc target
 
 XXX: needs build avoidance
 ---
@@ -40,5 +40,5 @@ index c863007..8e21be6 100644
 +
 +doc:
 -- 
-2.5.3
+2.6.2
 

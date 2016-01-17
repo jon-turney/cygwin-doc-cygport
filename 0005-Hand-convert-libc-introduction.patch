@@ -1,7 +1,7 @@
-From 94c20ffcafe79e452ab532c441fa8642d5769466 Mon Sep 17 00:00:00 2001
+From 46608b06d6d78cd37ef1064c59d9d3544a809d53 Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Sat, 18 Jul 2015 18:34:46 +0100
-Subject: [PATCH 04/13] Hand-convert libc introduction
+Subject: [PATCH 5/9] Hand-convert libc introduction
 
 v2:
 Fix xref
@@ -10,7 +10,7 @@ Fix xref
  1 file changed, 102 insertions(+), 1 deletion(-)
 
 diff --git a/newlib/libc/libc.in.xml b/newlib/libc/libc.in.xml
-index efe96bd..b0773f8 100644
+index ecf59dd..3dcb82f 100644
 --- a/newlib/libc/libc.in.xml
 +++ b/newlib/libc/libc.in.xml
 @@ -3,9 +3,110 @@
@@ -126,5 +126,5 @@ index efe96bd..b0773f8 100644
    <xi:include href="ctype.xml"/>
    <xi:include href="stdio.xml"/>
 -- 
-2.5.3
+2.6.2
 

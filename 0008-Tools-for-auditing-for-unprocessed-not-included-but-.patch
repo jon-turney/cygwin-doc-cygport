@@ -1,8 +1,8 @@
-From 22d231a0b24a05ad117b34895645c65ff1c9f150 Mon Sep 17 00:00:00 2001
+From 39994a76b797e2eca451bd21f73701e14200df27 Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Tue, 23 Jun 2015 13:37:37 +0100
-Subject: [PATCH 03/13] Tools for auditing for unprocessed/not included but
- marked-up source file
+Subject: [PATCH 8/9] Tools for auditing for unprocessed/not included but
+ marked-up source files
 
 ---
  newlib/list-chewed-but-not-included-files | 5 +++++
@@ -52,5 +52,5 @@ index 0000000..ed1f688
 +	fi
 +    done
 -- 
-2.5.3
+2.6.2
 

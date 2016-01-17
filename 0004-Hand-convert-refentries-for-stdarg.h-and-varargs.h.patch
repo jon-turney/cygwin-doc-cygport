@@ -1,7 +1,7 @@
-From 0ff79de84fc61198c711c9a42c13fefefe59c2df Mon Sep 17 00:00:00 2001
+From 659c729a65b509ce203134b86cae96301693c44a Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Wed, 24 Jun 2015 17:21:50 +0100
-Subject: [PATCH 02/13] Hand-convert refentries for stdarg.h and varargs.h
+Subject: [PATCH 4/9] Hand-convert refentries for stdarg.h and varargs.h
 
 v2
 Structure as chapter, not reference
@@ -11,10 +11,10 @@ Structure as chapter, not reference
  2 files changed, 380 insertions(+), 2 deletions(-)
 
 diff --git a/newlib/libc/libc.in.xml b/newlib/libc/libc.in.xml
-index 50d4460..efe96bd 100644
+index 19644f1..ecf59dd 100644
 --- a/newlib/libc/libc.in.xml
 +++ b/newlib/libc/libc.in.xml
-@@ -30,7 +30,385 @@
+@@ -31,7 +31,385 @@
    <xi:include href="posix.xml">
        <xi:fallback/>
    </xi:include>
@@ -415,5 +415,5 @@ index 6216c99..34a6e61 100644
  @strong{Returns}@*
  @code{va_start} does not return a result.
 -- 
-2.5.3
+2.6.2
 

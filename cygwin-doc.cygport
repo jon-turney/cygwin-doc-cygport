@@ -1,5 +1,5 @@
 NAME="cygwin-doc"
-VERSION="2.3.0"
+VERSION="2.4.0"
 RELEASE="1"
 HOMEPAGE="https://cygwin.com/"
 
@@ -31,19 +31,14 @@ RESTRICT="debuginfo postinst-doc"
 
 PATCH_URI="
 0001-Make-newlib-manpages-via-DocBook-XML.patch
-0002-Hand-convert-refentries-for-stdarg.h-and-varargs.h.patch
-0003-Tools-for-auditing-for-unprocessed-not-included-but-.patch
-0004-Hand-convert-libc-introduction.patch
-0005-Hand-convert-syscalls-chapter.patch
-0006-Include-generated-reent-documentation.patch
+0002-Include-generated-reent-documentation.patch
+0003-Plumb-in-top-level-doc-target.patch
+0004-Hand-convert-refentries-for-stdarg.h-and-varargs.h.patch
+0005-Hand-convert-libc-introduction.patch
+0006-Hand-convert-syscalls-chapter.patch
 0007-Hand-convert-iconv-chapter.patch
-0008-Fix-some-incorrect-QUICKREF-lines.patch
-0009-makedocbook-doesn-t-need-to-handle-QUICKREF-command-.patch
-0010-Plumb-in-top-level-doc-target.patch
-0011-Simplify-the-markup-for-sprintf-sscanf-documentation.patch
-0012-makedoc-commands-must-be-at-least-3-letters.patch
-0013-Teach-makedocbook-to-understand-texinfo-multitable.patch
-0014-Regenerate-Makefile.in-files.patch
+0008-Tools-for-auditing-for-unprocessed-not-included-but-.patch
+0009-Regenerate-Makefile.in.patch
 "
 
 src_compile() {

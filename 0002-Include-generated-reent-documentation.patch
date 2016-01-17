@@ -1,7 +1,7 @@
-From e70b472eded567bb4b0d97076a6cc142b7b61fb8 Mon Sep 17 00:00:00 2001
+From 503c4683e65103ae25734bb41b064f739123880c Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Sat, 18 Jul 2015 18:43:15 +0100
-Subject: [PATCH 06/13] Include generated reent documentation
+Subject: [PATCH 2/9] Include generated reent documentation
 
 ---
  newlib/libc/libc.in.xml     | 1 +
@@ -9,10 +9,10 @@ Subject: [PATCH 06/13] Include generated reent documentation
  2 files changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/newlib/libc/libc.in.xml b/newlib/libc/libc.in.xml
-index 5d455fd..49d7a8d 100644
+index 50d4460..19644f1 100644
 --- a/newlib/libc/libc.in.xml
 +++ b/newlib/libc/libc.in.xml
-@@ -125,6 +125,7 @@
+@@ -24,6 +24,7 @@
    <xi:include href="time.xml"/>
    <xi:include href="locale.xml"/>
    <!-- reent.tex contains fixed content and nothing seems to include the .def made in reent/ -->
@@ -36,5 +36,5 @@ index 881c572..12597be 100644
  uses a single global instance of the reentrancy structure.  The second
  has a different name, normally formed by prepending @samp{_} and
 -- 
-2.5.3
+2.6.2
 

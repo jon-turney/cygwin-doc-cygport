@@ -1,7 +1,7 @@
-From 8c016c65a7cfea3b3145ca049f6beb21763c570d Mon Sep 17 00:00:00 2001
+From ea72ed0c4a4ec34f52d2aea87b746a97364bec5a Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Mon, 26 Oct 2015 16:46:13 +0000
-Subject: [PATCH 01/13] Make newlib manpages via DocBook XML
+Subject: [PATCH 1/9] Make newlib manpages via DocBook XML
 
 Add makedocbook, a tool to process makedoc markup and output DocBook XML
 refentries.
@@ -37,11 +37,17 @@ Include an index for libm as well
 FUNCTION separator is now always em-dash
 prototype without a terminating ; is an error
 Convert texinfo @xref to Docbook XML <xref/>
+
+v5:
+makedocbook doesn't need to handle QUICKREF command specially anymore
+makedoc commands must be at least 3 letters ('L' all alone on a line is not a
+command)
+Teach makedocbook to understand texinfo @multitable
 ---
  newlib/Makefile.shared             |  26 +-
  newlib/doc/.gitignore              |   3 +
  newlib/doc/chapter-texi2docbook.py | 142 +++++++
- newlib/doc/makedocbook.py          | 792 +++++++++++++++++++++++++++++++++++++
+ newlib/doc/makedocbook.py          | 834 +++++++++++++++++++++++++++++++++++++
  newlib/libc/Makefile.am            |  20 +-
  newlib/libc/iconv/Makefile.am      |   3 +
  newlib/libc/libc.in.xml            |  43 ++
@@ -49,7 +55,7 @@ Convert texinfo @xref to Docbook XML <xref/>
  newlib/libm/libm.in.xml            |  15 +
  newlib/man.xsl                     |  13 +
  newlib/refcontainers.xslt          |  14 +
- 11 files changed, 1083 insertions(+), 7 deletions(-)
+ 11 files changed, 1125 insertions(+), 7 deletions(-)
  create mode 100644 newlib/doc/.gitignore
  create mode 100755 newlib/doc/chapter-texi2docbook.py
  create mode 100755 newlib/doc/makedocbook.py
@@ -263,10 +269,10 @@ index 0000000..1cd1e2e
 +    main()
 diff --git a/newlib/doc/makedocbook.py b/newlib/doc/makedocbook.py
 new file mode 100755
-index 0000000..faf92ce
+index 0000000..1b4f5ab
 --- /dev/null
 +++ b/newlib/doc/makedocbook.py
-@@ -0,0 +1,792 @@
+@@ -0,0 +1,834 @@
 +#!/usr/bin/env python
 +#
 +# python script to process makedoc instructions in a source file and produce
@@ -372,12 +378,10 @@ index 0000000..faf92ce
 +# Stage 2
 +#
 +
-+# A command is a single word, all uppercase, and alone on a line
-+#
-+# Some 'QUICKREF' lines have trailing text.  This is probably a markup error,
-+# but accept it.
++# A command is a single word of at least 3 characters, all uppercase, and alone on a line
 +def iscommand(l):
-+    if re.match('^[A-Z_]+\s*$', l) or l.startswith('QUICKREF'):
++    if re.match('^[A-Z_]{3,}\s*$', l):
++
 +	return True
 +    return False
 +
@@ -766,6 +770,11 @@ index 0000000..faf92ce
 +    'end tex' : 'ENDIFTEX',
 +    'comment' : 'COMMENT',
 +    'c ' : 'COMMENT',
++    'multitable' : 'MULTICOLUMNTABLE',
++    'end multitable' : 'ENDMULTICOLUMNTABLE',
++    'headitem' : 'MCT_HEADITEM',
++    'tab' : 'MCT_COLUMN_SEPARATOR',
++    'item' : 'MCT_ITEM',
 +    }
 +
 +# token names
@@ -990,6 +999,7 @@ index 0000000..faf92ce
 +def p_texinfocmd(p):
 +    '''texinfocmd : unknown_texinfocmd
 +                  | comment
++                  | multitable
 +                  | nottex
 +                  | tex'''
 +    p[0] = p[1]
@@ -1013,6 +1023,44 @@ index 0000000..faf92ce
 +    '''comment : COMMENT'''
 +    # comment text is discarded
 +    p[0] = ''
++
++def p_mct_columns(p):
++    '''mct_columns : maybe_lines
++                   | maybe_lines MCT_COLUMN_SEPARATOR mct_columns'''
++    if len(p) == 4:
++	p[0] = '<entry>' + p[1] + '</entry>' + p[3]
++    else:
++	p[0] = '<entry>' + p[1] + '</entry>'
++    parser_verbose(p)
++
++def p_mct_row(p):
++    '''mct_row : MCT_ITEM mct_columns'''
++    p[0] = '<row>' + p[2] + '</row>'
++    parser_verbose(p)
++
++def p_mct_rows(p):
++    '''mct_rows : mct_row
++                | mct_row mct_rows'''
++    if len(p) == 3:
++	p[0] = p[1] + '\n' + p[2]
++    else:
++	p[0] = p[1]
++    parser_verbose(p)
++
++def p_mct_header(p):
++    '''mct_header : MCT_HEADITEM mct_columns'''
++    p[0] = '<row>' + p[2] + '</row>'
++    parser_verbose(p)
++
++def p_multitable(p):
++    '''multitable : MULTICOLUMNTABLE mct_header mct_rows ENDMULTICOLUMNTABLE'''
++    # this doesn't handle the prototype row form of @multitable, only the @columnfractions form
++    colfrac = p[1].replace('@multitable @columnfractions', '').split()
++    colspec = '\n'.join(['<colspec colwidth="%s*"/>' % (c) for c in colfrac])
++    header = '<thead>' + p[2] + '</thead>\n'
++    body = '<tbody>' + p[3] + '</tbody>\n'
++    p[0] = '<informaltable><tgroup cols="' + str(len(colfrac)) +'">' + colspec + header + body  + '</tgroup></informaltable>'
++    parser_verbose(p)
 +
 +def p_error(t):
 +    print('parse error at line %d, token %s, next token %s' % (t.lineno, t, parser.token()), file=sys.stderr)
@@ -1254,5 +1302,5 @@ index 0000000..85396f6
 + </xsl:template>
 +</xsl:stylesheet>
 -- 
-2.5.3
+2.6.2
 
