@@ -1,4 +1,4 @@
-From ccd76bcafb0ae7a79d0e332940b0e6af09a4befd Mon Sep 17 00:00:00 2001
+From 5f3b8cd89b0fcbbf02e2bdd13aeed7f174808dff Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Sat, 18 Jul 2015 18:35:09 +0100
 Subject: [PATCH 6/9] Hand-convert syscalls chapter
@@ -467,5 +467,5 @@ index 0000000..2f36b1d
 +  </section>
 +</chapter>
 -- 
-2.6.2
+2.8.0
 

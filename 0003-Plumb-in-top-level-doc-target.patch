@@ -1,4 +1,4 @@
-From 750a99a281ddd87460f967343cbc6f58462528f9 Mon Sep 17 00:00:00 2001
+From 500873885f5eeb57473f7c21f700f5c49a78e98e Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Mon, 26 Oct 2015 21:09:45 +0000
 Subject: [PATCH 3/9] Plumb in top-level doc target
@@ -10,10 +10,10 @@ XXX: needs build avoidance
  2 files changed, 11 insertions(+)
 
 diff --git a/newlib/Makefile.am b/newlib/Makefile.am
-index 5ecce4c..8424480 100644
+index 200bc61..79268bc 100644
 --- a/newlib/Makefile.am
 +++ b/newlib/Makefile.am
-@@ -347,6 +347,15 @@ dvi-recursive: doc/makedoc
+@@ -362,6 +362,15 @@ dvi-recursive: doc/makedoc
  doc/makedoc:
  	cd doc && $(MAKE) all
  
@@ -40,5 +40,5 @@ index c863007..8e21be6 100644
 +
 +doc:
 -- 
-2.6.2
+2.8.0
 

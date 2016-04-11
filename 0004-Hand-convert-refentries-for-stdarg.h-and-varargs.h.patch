@@ -1,4 +1,4 @@
-From 659c729a65b509ce203134b86cae96301693c44a Mon Sep 17 00:00:00 2001
+From 59e03aab446e663b8877bac64562981dbc03ffdf Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Wed, 24 Jun 2015 17:21:50 +0100
 Subject: [PATCH 4/9] Hand-convert refentries for stdarg.h and varargs.h
@@ -415,5 +415,5 @@ index 6216c99..34a6e61 100644
  @strong{Returns}@*
  @code{va_start} does not return a result.
 -- 
-2.6.2
+2.8.0
 

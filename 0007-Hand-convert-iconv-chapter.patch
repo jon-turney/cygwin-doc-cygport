@@ -1,4 +1,4 @@
-From d8f3cea80e29bf974310531bbcc703581955579a Mon Sep 17 00:00:00 2001
+From cab1f9a4d5dde31ca065c9cc058b3e55e6d92ad0 Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Sat, 24 Oct 2015 18:18:00 +0100
 Subject: [PATCH 7/9] Hand-convert iconv chapter
@@ -1824,5 +1824,5 @@ index 0000000..2ef69c0
 +</section>
 +</chapter>
 -- 
-2.6.2
+2.8.0
 

@@ -1,4 +1,4 @@
-From 409f02673326f87ed018ca46004dcdd52fbf7ade Mon Sep 17 00:00:00 2001
+From e579445f75d26b0b7db07ef909c7e25152310576 Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Sun, 17 Jan 2016 17:50:09 +0000
 Subject: [PATCH 9/9] Regenerate Makefile.in
@@ -37,10 +37,10 @@ Subject: [PATCH 9/9] Regenerate Makefile.in
  30 files changed, 714 insertions(+), 172 deletions(-)
 
 diff --git a/newlib/Makefile.in b/newlib/Makefile.in
-index 468ae99..d203375 100644
+index c4cc431..eeeb2c8 100644
 --- a/newlib/Makefile.in
 +++ b/newlib/Makefile.in
-@@ -1088,6 +1088,15 @@ dvi-recursive: doc/makedoc
+@@ -1116,6 +1116,15 @@ dvi-recursive: doc/makedoc
  doc/makedoc:
  	cd doc && $(MAKE) all
  
@@ -321,7 +321,7 @@ index a6c56c8..9635eff 100644
  
  # Tell versions [3.59,3.63) of GNU make to not export all variables.
 diff --git a/newlib/libc/iconv/Makefile.in b/newlib/libc/iconv/Makefile.in
-index e0ed3f9..b66ef5e 100644
+index e0ed3f9..03ed6bd 100644
 --- a/newlib/libc/iconv/Makefile.in
 +++ b/newlib/libc/iconv/Makefile.in
 @@ -271,15 +271,19 @@ SUBDEFS = lib/stmp-def
@@ -338,7 +338,7 @@ index e0ed3f9..b66ef5e 100644
 +CLEANFILES = $(CHEWOUT_FILES) $(CHEWOUT_FILES:.def=.ref) $(DOCBOOK_OUT_FILES)
  CHEWOUT_FILES = iconv.def
 -CHAPTERS = iconv.tex
-+CHAPTERS = 
++CHAPTERS =
 +DOCBOOK_STATIC_CHAPTERS = iconv.xml
  all: all-recursive
  
@@ -1144,10 +1144,10 @@ index 6adcf7e..8ec8d40 100644
  # Otherwise a system limit (for SysV at least) may be exceeded.
  .NOEXPORT:
 diff --git a/newlib/libc/stdlib/Makefile.in b/newlib/libc/stdlib/Makefile.in
-index 36e81c8..3cc9df4 100644
+index 5ab16a7..c760d4c 100644
 --- a/newlib/libc/stdlib/Makefile.in
 +++ b/newlib/libc/stdlib/Makefile.in
-@@ -487,9 +487,12 @@ libstdlib_la_LDFLAGS = -Xcompiler -nostdlib
+@@ -491,9 +491,12 @@ libstdlib_la_LDFLAGS = -Xcompiler -nostdlib
  #
  # documentation rules
  #
@@ -1162,7 +1162,7 @@ index 36e81c8..3cc9df4 100644
  MALLOC_COMPILE = $(LIB_COMPILE) -DINTERNAL_NEWLIB
  CHEWOUT_FILES = \
  	_Exit.def	\
-@@ -544,7 +547,7 @@ CHAPTERS = stdlib.tex
+@@ -549,7 +552,7 @@ CHAPTERS = stdlib.tex
  all: all-am
  
  .SUFFIXES:
@@ -1171,7 +1171,7 @@ index 36e81c8..3cc9df4 100644
  $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(srcdir)/../../Makefile.shared $(am__configure_deps)
  	@for dep in $?; do \
  	  case '$(am__configure_deps)' in \
-@@ -1473,17 +1476,33 @@ objectlist.awk.in: $(noinst_LTLIBRARIES)
+@@ -1496,17 +1499,33 @@ objectlist.awk.in: $(noinst_LTLIBRARIES)
  	done
  
  .c.def:
@@ -1209,10 +1209,10 @@ index 36e81c8..3cc9df4 100644
  	$(MALLOC_COMPILE) -DDEFINE_MALLOC -c $(srcdir)/$(MALLOCR).c -o $@
  
 diff --git a/newlib/libc/string/Makefile.in b/newlib/libc/string/Makefile.in
-index b1bb89c..9fc36a1 100644
+index 4d42c90..7dd9654 100644
 --- a/newlib/libc/string/Makefile.in
 +++ b/newlib/libc/string/Makefile.in
-@@ -434,9 +434,12 @@ libstring_la_LDFLAGS = -Xcompiler -nostdlib
+@@ -440,9 +440,12 @@ libstring_la_LDFLAGS = -Xcompiler -nostdlib
  #
  # documentation rules
  #
@@ -1227,7 +1227,7 @@ index b1bb89c..9fc36a1 100644
  CHEWOUT_FILES = \
  bcmp.def	memcpy.def	strcmp.def	strncat.def strstr.def \
  bcopy.def	memmove.def	strcoll.def	strncmp.def strtok.def \
-@@ -459,7 +462,7 @@ CHAPTERS = strings.tex wcstrings.tex
+@@ -465,7 +468,7 @@ CHAPTERS = strings.tex wcstrings.tex
  all: all-am
  
  .SUFFIXES:
@@ -1236,7 +1236,7 @@ index b1bb89c..9fc36a1 100644
  $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(srcdir)/../../Makefile.shared $(am__configure_deps)
  	@for dep in $?; do \
  	  case '$(am__configure_deps)' in \
-@@ -1226,17 +1229,33 @@ objectlist.awk.in: $(noinst_LTLIBRARIES)
+@@ -1250,17 +1253,33 @@ objectlist.awk.in: $(noinst_LTLIBRARIES)
  	done
  
  .c.def:
@@ -1654,7 +1654,7 @@ index a1b2787..8255c49 100644
  
  $(lib_a_OBJECTS): $(srcdir)/../../libc/include/math.h fdlibm.h
 diff --git a/newlib/libm/complex/Makefile.in b/newlib/libm/complex/Makefile.in
-index 49e35ac..16933d1 100644
+index 0954736..7e029d7 100644
 --- a/newlib/libm/complex/Makefile.in
 +++ b/newlib/libm/complex/Makefile.in
 @@ -295,9 +295,12 @@ libcomplex_la_LDFLAGS = -Xcompiler -nostdlib
@@ -1681,7 +1681,7 @@ index 49e35ac..16933d1 100644
  $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(srcdir)/../../Makefile.shared $(am__configure_deps)
  	@for dep in $?; do \
  	  case '$(am__configure_deps)' in \
-@@ -853,17 +856,33 @@ objectlist.awk.in: $(noinst_LTLIBRARIES)
+@@ -865,17 +868,33 @@ objectlist.awk.in: $(noinst_LTLIBRARIES)
  	done
  
  .c.def:
@@ -1849,5 +1849,5 @@ index a39bec5..9ff0795 100644
  
  $(lib_a_OBJECTS): $(srcdir)/../../libc/include/math.h $(srcdir)/../common/fdlibm.h
 -- 
-2.6.2
+2.8.0
 

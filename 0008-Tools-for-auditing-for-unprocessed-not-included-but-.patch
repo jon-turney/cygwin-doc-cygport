@@ -1,4 +1,4 @@
-From 39994a76b797e2eca451bd21f73701e14200df27 Mon Sep 17 00:00:00 2001
+From 6c0f69515710f2bae442e40f6b1484706075625f Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Tue, 23 Jun 2015 13:37:37 +0100
 Subject: [PATCH 8/9] Tools for auditing for unprocessed/not included but
@@ -52,5 +52,5 @@ index 0000000..ed1f688
 +	fi
 +    done
 -- 
-2.6.2
+2.8.0
 

@@ -1,4 +1,4 @@
-From 503c4683e65103ae25734bb41b064f739123880c Mon Sep 17 00:00:00 2001
+From 09ac71b7acafe953efa5d2560653f8441e05c8b5 Mon Sep 17 00:00:00 2001
 From: Jon Turney <jon.turney@dronecode.org.uk>
 Date: Sat, 18 Jul 2015 18:43:15 +0100
 Subject: [PATCH 2/9] Include generated reent documentation
@@ -36,5 +36,5 @@ index 881c572..12597be 100644
  uses a single global instance of the reentrancy structure.  The second
  has a different name, normally formed by prepending @samp{_} and
 -- 
-2.6.2
+2.8.0
 
